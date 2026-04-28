@@ -1,0 +1,15 @@
+# Build files
+build/
+
+# Models
+models/
+
+# MuJoCo
+mujoco/
+mujoco_include/
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
