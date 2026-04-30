@@ -175,9 +175,13 @@ int main() {
         haply_client.getOrientation(haply_ox, haply_oy, haply_oz, haply_ow);
         std::cout << "IK input orientation: " << haply_ox << " " << haply_oy << " " << haply_oz << " " << haply_ow <<std::endl;
 
+        double cur_ee_x = data->xpos[ee_body * 3 + 0];
+        double cur_ee_y = data->xpos[ee_body * 3 + 1];
+        double cur_ee_z = data->xpos[ee_body * 3 + 2];
+
         if (haply_client.hasOrientation()) {
             //coor_trans.transform(haply_px, haply_py, haply_pz, franka_x, franka_y, franka_z);
-            ik_solver->solve(data, franka_home_x, franka_home_y, franka_home_z, // TODO: REPLACE franka_home VARS WITH franka_x, ... WHEN INVERSE3 WORKS
+            ik_solver->solve(data, cur_ee_x, cur_ee_y, cur_ee_z, // TODO: REPLACE cur_ee_x VARS WITH franka_x, ... WHEN INVERSE3 WORKS
                              haply_ox, haply_oy, haply_oz, haply_ow, target_qpos);
         }
 
