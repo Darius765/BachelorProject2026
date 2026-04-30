@@ -37,10 +37,10 @@ public:
         double cur_ori_w = data->xquat[body_id * 4 + 0];
         
         // Compute quaterion error
-        double error_x = target_qw * (-cur_ori_x) + target_x * cur_ori_w + target_y * (-cur_ori_z) - target_z * (-cur_ori_y);
-        double error_y = target_qw * (-cur_ori_y) - target_x * (-cur_ori_z) + target_y * cur_ori_w + target_z * (-cur_ori_x);
-        double error_z = target_qw * (-cur_ori_z) + target_x * (-cur_ori_y) - target_y * (-cur_ori_x) + target_z * cur_ori_w;
-        double error_w = target_qw * cur_ori_w + target_x * cur_ori_x + target_y * cur_ori_y + target_z * cur_ori_z;
+        double error_x = target_qw * (-cur_ori_x) + target_qx * cur_ori_w + target_qy * (-cur_ori_z) - target_qz * (-cur_ori_y);
+        double error_y = target_qw * (-cur_ori_y) - target_qx * (-cur_ori_z) + target_qy * cur_ori_w + target_qz * (-cur_ori_x);
+        double error_z = target_qw * (-cur_ori_z) + target_qx * (-cur_ori_y) - target_qy * (-cur_ori_x) + target_qz * cur_ori_w;
+        double error_w = target_qw * cur_ori_w + target_qx * cur_ori_x + target_qy * cur_ori_y + target_qz * cur_ori_z;
 
         // Use shortest rotation path of the two possible paths
         if (error_w < 0) { 

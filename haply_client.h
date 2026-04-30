@@ -17,7 +17,7 @@ class HaplyClient : public Haply {
                         context(nullptr), wsi(nullptr) {}
 
         bool isConnected() {
-            return connected && receiving_data;
+            return connected;
         }
 
         void connect() override {
@@ -82,6 +82,7 @@ class HaplyClient : public Haply {
             out_y = qy;
             out_z = qz;
             out_w = qw;
+            std::cout << "Orientation: " << qx << " " << qy << " " << qz << " " << qw << std::endl;
         }
 
         void sendForce(double fx, double fy, double fz) override {
