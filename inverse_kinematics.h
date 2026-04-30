@@ -26,9 +26,13 @@ public:
 
         // Compute position error
         Eigen::Vector3d pos_error;
-        pos_error(0) = target_x - cur_pos_x;
-        pos_error(1) = target_y - cur_pos_y;
-        pos_error(2) = target_z - cur_pos_z;
+        pos_error(0) = 0.0;
+        pos_error(1) = 0.0;
+        pos_error(2) = 0.0;
+        // TODO: REPLACE THIS WHEN INVERSE3 WORKING
+        // pos_error(0) = target_x - cur_pos_x;
+        // pos_error(1) = target_y - cur_pos_y;
+        // pos_error(2) = target_z - cur_pos_z;
 
         // Get current EE orientation
         double cur_ori_x = data->xquat[body_id * 4 + 1];
@@ -55,8 +59,8 @@ public:
 
         // Create 6-dimensional error vector
         Eigen::VectorXd error(6);
-        error.head(3) = pos_error * 0.5;
-        error.tail(3) = ori_error * 1.0;
+        error.head(3) = pos_error;
+        error.tail(3) = ori_error * 0.5;
 
         // Get the full Jacobian
         Eigen::MatrixXd jac_pos = Eigen::MatrixXd::Zero(3, nv);
