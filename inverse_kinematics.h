@@ -19,7 +19,7 @@ public:
     // Returns corrected joint positions via target_qpos
     void solve(mjData* data, double target_x, double target_y, double target_z,
                double target_qx, double target_qy, double target_qz, double target_qw,
-               double* target_qpos, double dt = 0.002) {
+               double* target_qpos, double dt = 0.05) {
 
         int nv = model->nv;
 
@@ -66,7 +66,7 @@ public:
         // Create 6-dimensional error vector
         Eigen::VectorXd error(6);
         error.head(3) = pos_error * 10;
-        error.tail(3) = ori_error * 0.5;
+        error.tail(3) = ori_error * 0.1;
 
         // Get the full Jacobian
         Eigen::MatrixXd jac_pos = Eigen::MatrixXd::Zero(3, nv);
@@ -95,7 +95,7 @@ public:
 
         // Update target joint positions
         for (int i = 0; i < 7; i++) {
-            target_qpos[i] = data->qpos[i] + dq(i);//TODO: RETURN THIS WHEN FIXED * dt;
+            target_qpos[i] = data->qpos[i] + dq(i) * dt;
         }
     }
 
