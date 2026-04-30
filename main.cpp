@@ -140,12 +140,14 @@ int main() {
     mjr_makeContext(model, &con, mjFONTSCALE_150);
     mjcb_control = control;
 
-    // Sim haply TODO: REPLACE THIS WITH REAL HAPLY
-    HaplyClient sim_haply;
+    // Haply client
+    HaplyClient haply_client;
     CoordinateTransformation coor_trans;
-    sim_haply.connect();
+    haply_client.connect();
 
-    double haply_x, haply_y, haply_z, haply_fx, haply_fy, haply_fz, franka_x, franka_y, franka_z = 0.0;
+    double haply_x = 0.0, haply_y = 0.0, haply_z = 0.0;
+    double haply_fx = 0.0, haply_fy = 0.0, haply_fz = 0.0;
+    double franka_x = 0.0, franka_y = 0.0, franka_z = 0.0;
 
     // Time control var
     std::chrono::steady_clock::time_point prev_time = std::chrono::steady_clock::now();
@@ -155,16 +157,16 @@ int main() {
     while (!glfwWindowShouldClose(window)) {
         mj_step(model, data);
 
-        coor_trans->inverseTransform(
+        coor_trans.inverseTransform(
             data->cfrc_ext[ee_body * 6 + 0],
             data->cfrc_ext[ee_body * 6 + 1],
             data->cfrc_ext[ee_body * 6 + 2],
             haply_fx, haply_fy, haply_fz
         );
-        sim_haply.sendForce(haply_fx, haply_fy, haply_fz);
+        haply_client.sendForce(haply_fx, haply_fy, haply_fz);
 
-        sim_haply.getPosition(haply_x, haply_y, haply_z);
-        coor_trans->transform(haply_x, haply_y, haply_z, franka_x, franka_y, franka_z);
+        haply_client.getPosition(haply_x, haply_y, haply_z);
+        coor_trans.transform(haply_x, haply_y, haply_z, franka_x, franka_y, franka_z);
         ik_solver->solve(data, franka_x, franka_y, franka_z, target_qpos);
 
         std::chrono::steady_clock::time_point cur_time = std::chrono::steady_clock::now();
