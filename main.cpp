@@ -145,9 +145,15 @@ int main() {
     CoordinateTransformation coor_trans;
     haply_client.connect();
 
-    double haply_x = 0.0, haply_y = 0.0, haply_z = 0.0;
+    double haply_px = 0.0, haply_py = 0.0, haply_pz = 0.0;
     double haply_fx = 0.0, haply_fy = 0.0, haply_fz = 0.0;
+    double haply_ox = 0.0, haply_oy = 0.0, haply_oz = 0.0, haply_ow = 1.0;
     double franka_x = 0.0, franka_y = 0.0, franka_z = 0.0;
+
+    // TODO: THESE ARE TEMP VARS, REMOVE THEM WHEN INVERSE3 IS WORKING
+    double franka_home_x = 0.304;
+    double franka_home_y = 0.000;
+    double franka_home_z = 0.644;
 
     // Time control var
     std::chrono::steady_clock::time_point prev_time = std::chrono::steady_clock::now();
@@ -165,9 +171,14 @@ int main() {
         );
         haply_client.sendForce(haply_fx, haply_fy, haply_fz);
 
-        haply_client.getPosition(haply_x, haply_y, haply_z);
-        coor_trans.transform(haply_x, haply_y, haply_z, franka_x, franka_y, franka_z);
-        ik_solver->solve(data, franka_x, franka_y, franka_z, target_qpos);
+        //haply_client.getPosition(haply_px, haply_py, haply_pz);
+        haply_client.getOrientation(haply_ox, haply_oy, haply_oz, haply_ow);
+
+        if (haply_client.isConnected()) {
+            //coor_trans.transform(haply_px, haply_py, haply_pz, franka_x, franka_y, franka_z);
+            ik_solver->solve(data, franka_home_x, franka_home_y, franka_home_z, // TODO: REPLACE franka_home VARS WITH franka_x, ... WHEN INVERSE3 WORKS
+                             haply_ox, haply_oy, haply_oz, haply_ow, target_qpos);
+        }
 
         std::chrono::steady_clock::time_point cur_time = std::chrono::steady_clock::now();
         int elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - prev_time).count();

@@ -16,6 +16,10 @@ class HaplyClient : public Haply {
         HaplyClient() : connected(false), x(0), y(0), z(0), 
                         context(nullptr), wsi(nullptr) {}
 
+        bool isConnected() {
+            return connected && receiving_data;
+        }
+
         void connect() override {
             struct lws_context_creation_info info;
             memset(&info, 0, sizeof(info));
@@ -72,6 +76,14 @@ class HaplyClient : public Haply {
             out_z = z;
         }
 
+        void getOrientation(double& out_x, double& out_y, double& out_z, double& out_w) {
+            std::lock_guard<std::mutex> lock(data_mutex);
+            out_x = qx;
+            out_y = qy;
+            out_z = qz;
+            out_w = qw;
+        }
+
         void sendForce(double fx, double fy, double fz) override {
             if (!wsi || !connected) return;
             
@@ -96,6 +108,7 @@ class HaplyClient : public Haply {
                 auto data = nlohmann::json::parse(msg);
                 auto& inv3 = data["inverse3"];
                 if (!inv3.empty()) {
+                    receiving_data = true;
                     auto& state = inv3[0]["state"];
                     auto& cursor = state["cursor"]["position"];
                     std::lock_guard<std::mutex> lock(data_mutex);
@@ -104,6 +117,16 @@ class HaplyClient : public Haply {
                     z = cursor["z"].get<double>();
                     device_id = inv3[0]["device_id"].get<std::string>();
                 }
+                auto& grip = data["wireless_verse_grip"];
+                if (!grip.empty()) {
+                    auto& orientation = grip[0]["state"]["orientation"];
+                    std::lock_guard<std::mutex> lock(data_mutex);
+                    qx = orientation["x"].get<double>();
+                    qy = orientation["y"].get<double>();
+                    qz = orientation["z"].get<double>();
+                    qw = orientation["w"].get<double>();
+                    has_orientation = true;
+                }
             } catch (const std::exception& e) {
                 std::cerr << "JSON parse error: " << e.what() << std::endl;
             }
@@ -111,9 +134,12 @@ class HaplyClient : public Haply {
 
     private:
         std::atomic<bool> connected;
+        std::atomic<bool> receiving_data{false};
         std::thread recv_thread;
         std::mutex data_mutex;
         double x, y, z;
+        double qx, qy, qz, qw;
+        bool has_orientation{false};
         std::string device_id;
         struct lws_context* context;
         struct lws* wsi;
