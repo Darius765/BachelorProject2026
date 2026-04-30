@@ -24,15 +24,23 @@ public:
         double cur_pos_y = data->xpos[body_id * 3 + 1];
         double cur_pos_z = data->xpos[body_id * 3 + 2];
 
+        if (!initialized) {
+            lock_x = cur_pos_x;
+            lock_y = cur_pos_y;
+            lock_z = cur_pos_z;
+            initialized = true;
+        }
+
         // Compute position error
         Eigen::Vector3d pos_error;
-        pos_error(0) = 0.0;
-        pos_error(1) = 0.0;
-        pos_error(2) = 0.0;
-        // TODO: REPLACE THIS WHEN INVERSE3 WORKING
+        pos_error(0) = lock_x - cur_pos_x;
+        pos_error(1) = lock_y - cur_pos_y;
+        pos_error(2) = lock_z - cur_pos_z;
+        // TODO: REVERT THIS WHEN INVERSE3 IS WORKING
         // pos_error(0) = target_x - cur_pos_x;
         // pos_error(1) = target_y - cur_pos_y;
         // pos_error(2) = target_z - cur_pos_z;
+
 
         // Get current EE orientation
         double cur_ori_x = data->xquat[body_id * 4 + 1];
@@ -41,15 +49,15 @@ public:
         double cur_ori_w = data->xquat[body_id * 4 + 0];
         
         // Compute quaterion error
-        double error_x = target_qw * (-cur_ori_x) + target_qx * cur_ori_w + target_qy * (-cur_ori_z) - target_qz * (-cur_ori_y);
-        double error_y = target_qw * (-cur_ori_y) - target_qx * (-cur_ori_z) + target_qy * cur_ori_w + target_qz * (-cur_ori_x);
-        double error_z = target_qw * (-cur_ori_z) + target_qx * (-cur_ori_y) - target_qy * (-cur_ori_x) + target_qz * cur_ori_w;
-        double error_w = target_qw * cur_ori_w + target_qx * cur_ori_x + target_qy * cur_ori_y + target_qz * cur_ori_z;
+        Eigen::Quaterniond q_cur(cur_ori_w, cur_ori_x, cur_ori_y, cur_ori_z);
+        Eigen::Quaterniond q_tgt(target_qw, target_qx, target_qy, target_qz);
+
+        Eigen::Quaterniond q_err = q_tgt * q_cur.inverse();
+
+        Eigen::Vector3d ori_error = q_err.vec();
 
         // Use shortest rotation path of the two possible paths
-        if (error_w < 0) { 
-            error_x = -error_x; error_y = -error_y; error_z = -error_z; 
-        }
+        if (q_err.w() < 0) ori_error = -ori_error;
 
         // Compute orientation error
         Eigen::Vector3d ori_error;
@@ -59,7 +67,7 @@ public:
 
         // Create 6-dimensional error vector
         Eigen::VectorXd error(6);
-        error.head(3) = pos_error;
+        error.head(3) = pos_error * 10;
         error.tail(3) = ori_error * 0.5;
 
         // Get the full Jacobian
@@ -89,13 +97,15 @@ public:
 
         // Update target joint positions
         for (int i = 0; i < 7; i++) {
-            target_qpos[i] = data->qpos[i] + dq(i) * dt;
+            target_qpos[i] = data->qpos[i] + dq(i);//TODO: RETURN THIS WHEN FIXED * dt;
         }
     }
 
 private:
     mjModel* model;
     int body_id;
+    static bool initialized = false;
+    static double lock_x, lock_y, lock_z;
 };
 
 #endif
