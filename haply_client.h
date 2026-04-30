@@ -21,6 +21,10 @@ class HaplyClient : public Haply {
             return connected;
         }
 
+        bool hasOrientation() {
+            return has_orientation;
+        }
+
         void connect() override {
             struct lws_context_creation_info info;
             memset(&info, 0, sizeof(info));
@@ -83,7 +87,6 @@ class HaplyClient : public Haply {
             out_y = qy;
             out_z = qz;
             out_w = qw;
-            std::cout << "Orientation: " << qx << " " << qy << " " << qz << " " << qw << std::endl;
         }
 
         void sendForce(double fx, double fy, double fz) override {

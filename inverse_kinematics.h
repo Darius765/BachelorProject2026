@@ -55,8 +55,8 @@ public:
 
         // Create 6-dimensional error vector
         Eigen::VectorXd error(6);
-        error.head(3) = pos_error;
-        error.tail(3) = ori_error;
+        error.head(3) = pos_error * 0.5;
+        error.tail(3) = ori_error * 1.0;
 
         // Get the full Jacobian
         Eigen::MatrixXd jac_pos = Eigen::MatrixXd::Zero(3, nv);
