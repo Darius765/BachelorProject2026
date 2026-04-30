@@ -2,7 +2,8 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <chrono>
-#include "sim_haply.h"
+#include "haply_client.h"
+#include "coordinate_transform.h"
 #include "inverse_kinematics.h"
 
 // MuJoCo model and data
@@ -140,11 +141,11 @@ int main() {
     mjcb_control = control;
 
     // Sim haply TODO: REPLACE THIS WITH REAL HAPLY
-    SimHaply sim_haply;
+    HaplyClient sim_haply;
+    CoordinateTransformation coor_trans;
     sim_haply.connect();
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
+
+    double haply_x, haply_y, haply_z, haply_fx, haply_fy, haply_fz, franka_x, franka_y, franka_z = 0.0;
 
     // Time control var
     std::chrono::steady_clock::time_point prev_time = std::chrono::steady_clock::now();
@@ -153,8 +154,18 @@ int main() {
     // Run simulation loop
     while (!glfwWindowShouldClose(window)) {
         mj_step(model, data);
-        sim_haply.getPosition(x, y, z);
-        ik_solver->solve(data, x, y, z, target_qpos);
+
+        coor_trans->inverseTransform(
+            data->cfrc_ext[ee_body * 6 + 0],
+            data->cfrc_ext[ee_body * 6 + 1],
+            data->cfrc_ext[ee_body * 6 + 2],
+            haply_fx, haply_fy, haply_fz
+        );
+        sim_haply.sendForce(haply_fx, haply_fy, haply_fz);
+
+        sim_haply.getPosition(haply_x, haply_y, haply_z);
+        coor_trans->transform(haply_x, haply_y, haply_z, franka_x, franka_y, franka_z);
+        ik_solver->solve(data, franka_x, franka_y, franka_z, target_qpos);
 
         std::chrono::steady_clock::time_point cur_time = std::chrono::steady_clock::now();
         int elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - prev_time).count();
