@@ -17,7 +17,6 @@ class HaplyClient : public Haply {
                         context(nullptr), wsi(nullptr) {}
 
         void connect() override {
-            // Set up libwebsockets context
             struct lws_context_creation_info info;
             memset(&info, 0, sizeof(info));
             info.port = CONTEXT_PORT_NO_LISTEN;
@@ -30,7 +29,6 @@ class HaplyClient : public Haply {
                 return;
             }
 
-            // Connect to Haply service
             struct lws_client_connect_info ccinfo;
             memset(&ccinfo, 0, sizeof(ccinfo));
             ccinfo.context = context;
@@ -48,8 +46,12 @@ class HaplyClient : public Haply {
                 return;
             }
 
+            // Wait for connection to establish
+            for (int i = 0; i < 50 && !connected; i++) {
+                lws_service(context, 10);
+            }
+
             // Start background thread
-            connected = true;
             recv_thread = std::thread(&HaplyClient::serviceLoop, this);
             std::cout << "Connected to Haply service" << std::endl;
         }
@@ -71,7 +73,7 @@ class HaplyClient : public Haply {
         }
 
         void sendForce(double fx, double fy, double fz) override {
-            if (!wsi) return;
+            if (!wsi || !connected) return;
             
             // Build force JSON
             nlohmann::json force_msg = {
@@ -124,11 +126,14 @@ class HaplyClient : public Haply {
 
         // libwebsockets callback
         static int callback(struct lws* wsi, enum lws_callback_reasons reason,
-                        void* user, void* in, size_t len) {
-            HaplyClient* client = static_cast<HaplyClient*>(
-                lws_context_user(lws_get_context(wsi)));
+                   void* user, void* in, size_t len) {
+            HaplyClient* client = static_cast<HaplyClient*>(lws_context_user(lws_get_context(wsi)));
 
             switch (reason) {
+                case LWS_CALLBACK_CLIENT_ESTABLISHED:
+                    if (client) client->connected = true;
+                    std::cout << "WebSocket connection established" << std::endl;
+                    break;
                 case LWS_CALLBACK_CLIENT_RECEIVE:
                     if (client && in && len > 0) {
                         client->onMessage(std::string((char*)in, len));
@@ -136,6 +141,7 @@ class HaplyClient : public Haply {
                     break;
                 case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
                     std::cerr << "WebSocket connection error" << std::endl;
+                    if (client) client->connected = false;
                     break;
                 default:
                     break;
