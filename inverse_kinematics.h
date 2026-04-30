@@ -10,6 +10,10 @@ public:
     IKSolver(mjModel* model, const std::string& body_name)
         : model(model) {
         body_id = mj_name2id(model, mjOBJ_BODY, body_name.c_str());
+        initialized = false;
+        lock_x = 0.0;
+        lock_y = 0.0;
+        lock_z = 0.0;
     }
 
     // Returns corrected joint positions via target_qpos
@@ -59,12 +63,6 @@ public:
         // Use shortest rotation path of the two possible paths
         if (q_err.w() < 0) ori_error = -ori_error;
 
-        // Compute orientation error
-        Eigen::Vector3d ori_error;
-        ori_error(0) = 2.0 * error_x;
-        ori_error(1) = 2.0 * error_y;
-        ori_error(2) = 2.0 * error_z;
-
         // Create 6-dimensional error vector
         Eigen::VectorXd error(6);
         error.head(3) = pos_error * 10;
@@ -104,8 +102,8 @@ public:
 private:
     mjModel* model;
     int body_id;
-    static bool initialized = false;
-    static double lock_x, lock_y, lock_z;
+    bool initialized;
+    double lock_x, lock_y, lock_z;
 };
 
 #endif
