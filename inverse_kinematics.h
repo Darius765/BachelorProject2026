@@ -73,9 +73,10 @@ public:
         Eigen::JacobiSVD<Eigen::MatrixXd> svd(J, Eigen::ComputeThinU | Eigen::ComputeThinV);
 
         Eigen::VectorXd s = svd.singularValues();
-        Eigen::MatrixXd sigma_inv = Eigen::MatrixXd::Zero(nv, 6);
+        Eigen::MatrixXd sigma_inv = Eigen::MatrixXd::Zero(6, 6);
         for (int i = 0; i < s.size(); i++) {
-            sigma_inv(i, i) = s(i) / (s(i) * s(i) + damping * damping);
+            double si = s(i);
+            sigma_inv(i, i) = si / (si * si + damping * damping);
         }
         Eigen::MatrixXd J_pinv = svd.matrixV() * sigma_inv * svd.matrixU().transpose();
 

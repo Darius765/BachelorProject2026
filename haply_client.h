@@ -13,7 +13,8 @@
 
 class HaplyClient : public Haply {
     public:
-        HaplyClient() : connected(false), x(0), y(0), z(0), 
+        HaplyClient() : connected(false), x(0), y(0), z(0),
+                        qx(0), qy(0), qz(0), qw(1.0), 
                         context(nullptr), wsi(nullptr) {}
 
         bool isConnected() {
