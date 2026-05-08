@@ -19,7 +19,7 @@ public:
     // Returns corrected joint positions via target_qpos
     void solve(mjData* data, double target_x, double target_y, double target_z,
                double target_qx, double target_qy, double target_qz, double target_qw,
-               double* target_qpos, double dt = 0.01) {
+               double* target_qpos, double dt = 0.1) {
 
         int nv = model->nv;
 

@@ -38,4 +38,30 @@ elseif(UNIX)
         websockets
         nlohmann_json::nlohmann_json
     )
+    
+elseif(WIN32)
+    set(MUJOCO_PATH "C:/mujoco")
+
+    find_package(Eigen3 REQUIRED)
+    find_package(nlohmann_json REQUIRED)
+    find_package(libwebsockets REQUIRED)
+    find_package(glfw3 REQUIRED)
+
+    include_directories(${MUJOCO_PATH}/include)
+    link_directories(${MUJOCO_PATH}/lib)
+
+    add_executable(teleop main.cpp)
+    target_link_libraries(teleop
+        ${MUJOCO_PATH}/lib/mujoco.lib
+        glfw
+        websockets
+        Eigen3::Eigen
+        nlohmann_json::nlohmann_json
+    )
+
+    add_custom_command(TARGET teleop POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${MUJOCO_PATH}/bin/mujoco.dll"
+        $<TARGET_FILE_DIR:teleop>
+    )
 endif()

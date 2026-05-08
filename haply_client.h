@@ -2,6 +2,9 @@
 #define HAPLY_CLIENT_H
 
 #include "haply.h"
+#ifdef _WIN32
+    #include <winsock2.h>
+#endif
 #include <libwebsockets.h>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -26,6 +29,10 @@ class HaplyClient : public Haply {
         }
 
         void connect() override {
+            #ifdef _WIN32
+                WSADATA wsaData;
+                WSAStartup(MAKEWORD(2, 2), &wsaData);
+            #endif
             struct lws_context_creation_info info;
             memset(&info, 0, sizeof(info));
             info.port = CONTEXT_PORT_NO_LISTEN;
@@ -71,6 +78,10 @@ class HaplyClient : public Haply {
                 recv_thread.join();
             if (context)
                 lws_context_destroy(context);
+            
+            #ifdef _WIN32
+                WSACleanup();
+            #endif
             std::cout << "Disconnected from Haply service" << std::endl;
         }
 

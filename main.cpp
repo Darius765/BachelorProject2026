@@ -73,8 +73,8 @@ double target_qpos[7] = {
 
 // Control callback - PD controller + gravity compensation
 void control(const mjModel* m, mjData* d) {
-    double kp = 200.0;  // position gain
-    double kd = 20.0;   // damping gain
+    double kp = 100.0;  // position gain
+    double kd = 30.0;   // damping gain
 
     for (int i = 0; i < 7; ++i) {
         double pos_error = target_qpos[i] - d->qpos[i];
