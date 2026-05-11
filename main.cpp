@@ -145,15 +145,27 @@ int main() {
     CoordinateTransformation coor_trans;
     haply_client.connect();
 
+    std::cout << "Waiting for Haply orientation" << std::endl;
+    while (!haply_client.hasOrientation()) {
+        haply_client.update();
+    }
+    double init_ox = 0.0, init_oy = 0.0, init_oz = 0.0, init_ow = 1.0;
+    haply_client.getOrientation(init_ox, init_oy, init_oz, init_ow);
+    std::cout << "Received initial orientation: " << init_ox << " " << init_oy << " " << init_oz << " " << init_ow << std::endl;
+
+    std::cout << "Waiting for Haply position" << std::endl;
+    while(!haply_client.hasPosition()) {
+        haply_client.update();
+    }
+    double init_px = 0.0, init_py = 0.0, init_pz = 0.0;
+    haply_client.getPosition(init_px, init_py, init_pz);
+    coor_trans.setNeutral(init_px, init_py, init_pz);
+    std::cout << "Received initial position: " << init_px << " " << init_py << " " << init_pz << std::endl;
+
     double haply_px = 0.0, haply_py = 0.0, haply_pz = 0.0;
     double haply_fx = 0.0, haply_fy = 0.0, haply_fz = 0.0;
     double haply_ox = 0.0, haply_oy = 0.0, haply_oz = 0.0, haply_ow = 1.0;
     double franka_x = 0.0, franka_y = 0.0, franka_z = 0.0;
-
-    // TODO: THESE ARE TEMP VARS, REMOVE THEM WHEN INVERSE3 IS WORKING
-    double franka_home_x = 0.304;
-    double franka_home_y = 0.000;
-    double franka_home_z = 0.644;
 
     // Time control var
     std::chrono::steady_clock::time_point prev_time = std::chrono::steady_clock::now();
@@ -161,6 +173,8 @@ int main() {
 
     // Run simulation loop
     while (!glfwWindowShouldClose(window)) {
+        haply_client.update();
+
         mj_step(model, data);
 
         coor_trans.inverseTransform(
@@ -171,24 +185,34 @@ int main() {
         );
         haply_client.sendForce(haply_fx, haply_fy, haply_fz);
 
-        //haply_client.getPosition(haply_px, haply_py, haply_pz);
+        haply_client.getPosition(haply_px, haply_py, haply_pz);
         haply_client.getOrientation(haply_ox, haply_oy, haply_oz, haply_ow);
-        std::cout << "IK input orientation: " << haply_ox << " " << haply_oy << " " << haply_oz << " " << haply_ow <<std::endl;
-
-        double cur_ee_x = data->xpos[ee_body * 3 + 0];
-        double cur_ee_y = data->xpos[ee_body * 3 + 1];
-        double cur_ee_z = data->xpos[ee_body * 3 + 2];
+        coor_trans.transform(haply_px, haply_py, haply_pz, franka_x, franka_y, franka_z);
 
         if (haply_client.hasOrientation()) {
-            //coor_trans.transform(haply_px, haply_py, haply_pz, franka_x, franka_y, franka_z);
-            ik_solver->solve(data, cur_ee_x, cur_ee_y, cur_ee_z, // TODO: REPLACE cur_ee_x VARS WITH franka_x, ... WHEN INVERSE3 WORKS
+            ik_solver->solve(data, franka_x, franka_y, franka_z,
                              haply_ox, haply_oy, haply_oz, haply_ow, target_qpos);
         }
+        
+        // std::cout << "IK input orientation: " << haply_ox << " " << haply_oy << " " << haply_oz << " " << haply_ow <<std::endl;
+
+        // double cur_ee_x = data->xpos[ee_body * 3 + 0];
+        // double cur_ee_y = data->xpos[ee_body * 3 + 1];
+        // double cur_ee_z = data->xpos[ee_body * 3 + 2];
+
+        // if (haply_client.hasOrientation()) {
+        //     //coor_trans.transform(haply_px, haply_py, haply_pz, franka_x, franka_y, franka_z);
+        //     ik_solver->solve(data, cur_ee_x, cur_ee_y, cur_ee_z, // TODO: REPLACE cur_ee_x VARS WITH franka_x, ... WHEN INVERSE3 WORKS
+        //                      haply_ox, haply_oy, haply_oz, haply_ow, target_qpos);
+        // }
 
         std::chrono::steady_clock::time_point cur_time = std::chrono::steady_clock::now();
         int elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - prev_time).count();
         if (elapsed >= time_interval_ms) {
             prev_time = cur_time;
+            double ox, oy, oz, ow;
+            haply_client.getOrientation(ox, oy, oz, ow);
+            std::cout << "Orientation: " << ox << " " << oy << " " << oz << " " << ow << std::endl;
             if (ee_body >= 0) {
                 std::cout << "End-effector position: "
                         << data->xpos[ee_body * 3 + 0] << " "

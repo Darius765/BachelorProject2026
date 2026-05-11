@@ -40,10 +40,9 @@ public:
         pos_error(0) = lock_x - cur_pos_x;
         pos_error(1) = lock_y - cur_pos_y;
         pos_error(2) = lock_z - cur_pos_z;
-        // TODO: REVERT THIS WHEN INVERSE3 IS WORKING
-        // pos_error(0) = target_x - cur_pos_x;
-        // pos_error(1) = target_y - cur_pos_y;
-        // pos_error(2) = target_z - cur_pos_z;
+        pos_error(0) = target_x - cur_pos_x;
+        pos_error(1) = target_y - cur_pos_y;
+        pos_error(2) = target_z - cur_pos_z;
 
 
         // Get current EE orientation
@@ -62,6 +61,11 @@ public:
 
         // Use shortest rotation path of the two possible paths
         if (q_err.w() < 0) ori_error = -ori_error;
+
+        double ori_error_norm = ori_error.norm();
+        if (ori_error_norm > 0.5) {
+            ori_error *= (0.5 / ori_error_norm);
+        }
 
         // Create 6-dimensional error vector
         Eigen::VectorXd error(6);

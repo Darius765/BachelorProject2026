@@ -2,27 +2,60 @@
 #define COORDINATE_TRANSFORM_H
 
 class CoordinateTransformation {
-    public:
-        float home_x = 0.304;
-        float home_y = 0.000;
-        float home_z = 0.644;
-        double scale = 2.0;
+public:
+    CoordinateTransformation() {
+        // Franka home position
+        home_x = 0.304;
+        home_y = 0.000;
+        home_z = 0.644;
 
-        // Scale Haply coordinates to Franka workspace
-        void transform(double haply_x, double haply_y, double haply_z,
-               double& franka_x, double& franka_y, double& franka_z) {
-            franka_x = home_x + (haply_x * scale);
-            franka_y = home_y + (haply_y * scale);
-            franka_z = home_z + (haply_z * scale);
-        }
+        // Scale factor
+        scale = 0.5;
 
-        // Scale Franka forces and coordinates back to Haply workspace
-        void inverseTransform(double franka_fx, double franka_fy, double franka_fz,
-                      double& haply_fx, double& haply_fy, double& haply_fz) {
-            haply_fx = franka_fx / scale;
-            haply_fy = franka_fy / scale;
-            haply_fz = franka_fz / scale;
-        }
+        // Neutral not set yet
+        neutral_set = false;
+        haply_neutral_x = 0.0;
+        haply_neutral_y = 0.0;
+        haply_neutral_z = 0.0;
+    }
+
+    // Call this once at startup with the first position reading
+    void setNeutral(double hx, double hy, double hz) {
+        haply_neutral_x = hx;
+        haply_neutral_y = hy;
+        haply_neutral_z = hz;
+        neutral_set = true;
+        std::cout << "Neutral position set: "
+                  << hx << " " << hy << " " << hz << std::endl;
+    }
+
+    bool isNeutralSet() { return neutral_set; }
+
+    void transform(double hx, double hy, double hz,
+                   double& fx, double& fy, double& fz) {
+        // Relative movement from neutral
+        double rel_x = hx - haply_neutral_x;
+        double rel_y = hy - haply_neutral_y;
+        double rel_z = hz - haply_neutral_z;
+
+        // Apply axis mapping and scaling
+        fx = home_x + (-rel_x * scale);
+        fy = home_y + (-rel_y * scale);
+        fz = home_z + ( rel_z * scale);
+    }
+
+    void inverseTransform(double ffx, double ffy, double ffz,
+                          double& hfx, double& hfy, double& hfz) {
+        hfx = -ffx / scale;
+        hfy = -ffy / scale;
+        hfz =  ffz / scale;
+    }
+
+private:
+    double home_x, home_y, home_z;
+    double haply_neutral_x, haply_neutral_y, haply_neutral_z;
+    double scale;
+    bool neutral_set;
 };
 
 #endif
