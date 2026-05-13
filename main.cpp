@@ -1,4 +1,5 @@
 #include <mujoco/mujoco.h>
+#include <Eigen/Dense>
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <chrono>
@@ -153,6 +154,13 @@ int main() {
     haply_client.getOrientation(init_ox, init_oy, init_oz, init_ow);
     std::cout << "Received initial orientation: " << init_ox << " " << init_oy << " " << init_oz << " " << init_ow << std::endl;
 
+    Eigen::Quaterniond init_ee_quat(data->xquat[ee_body * 4 + 0],  // w
+                                    data->xquat[ee_body * 4 + 1],  // x
+                                    data->xquat[ee_body * 4 + 2],  // y
+                                    data->xquat[ee_body * 4 + 3]); // z
+
+    Eigen::Quaterniond q_ref(init_ow, init_ox, init_oy, init_oz);
+
     std::cout << "Waiting for Haply position" << std::endl;
     while(!haply_client.hasPosition()) {
         haply_client.update();
@@ -189,37 +197,43 @@ int main() {
         haply_client.getOrientation(haply_ox, haply_oy, haply_oz, haply_ow);
         coor_trans.transform(haply_px, haply_py, haply_pz, franka_x, franka_y, franka_z);
 
-        // Smoothing
+        // Compute relative orientation from VerseGrip reference
+        Eigen::Quaterniond q_current(haply_ow, haply_ox, haply_oy, haply_oz);
+        Eigen::Quaterniond q_relative = q_current * q_ref.inverse();
+        Eigen::Quaterniond q_target = q_relative * init_ee_quat;
+        q_target.normalize();
+
+        // Smooth the target orientation
         static double smooth_ox = 0.0, smooth_oy = 0.0, smooth_oz = 0.0, smooth_ow = 1.0;
         double alpha = 0.1;
-        smooth_ox = smooth_ox * (1.0 - alpha) + haply_ox * alpha;
-        smooth_oy = smooth_oy * (1.0 - alpha) + haply_oy * alpha;
-        smooth_oz = smooth_oz * (1.0 - alpha) + haply_oz * alpha;
-        smooth_ow = smooth_ow * (1.0 - alpha) + haply_ow * alpha;
+        smooth_ox = smooth_ox * (1.0 - alpha) + q_target.x() * alpha;
+        smooth_oy = smooth_oy * (1.0 - alpha) + q_target.y() * alpha;
+        smooth_oz = smooth_oz * (1.0 - alpha) + q_target.z() * alpha;
+        smooth_ow = smooth_ow * (1.0 - alpha) + q_target.w() * alpha;
 
         // Normalize
-        double norm = sqrt(smooth_ox*smooth_ox + smooth_oy*smooth_oy + smooth_oz*smooth_oz + smooth_ow*smooth_ow);
+        double norm = sqrt(smooth_ox*smooth_ox + smooth_oy*smooth_oy +
+                        smooth_oz*smooth_oz + smooth_ow*smooth_ow);
         smooth_ox /= norm; smooth_oy /= norm;
         smooth_oz /= norm; smooth_ow /= norm;
 
         // Only update IK if input changed significantly
         static double prev_ox = 0.0, prev_oy = 0.0, prev_oz = 0.0, prev_ow = 1.0;
-        static double prev_px = 0.0, prev_py = 0.0, prev_pz = 0.0;
-        double ori_diff = fabs(smooth_ox - prev_ox) + fabs(smooth_oy - prev_oy) + fabs(smooth_oz - prev_oz) + fabs(smooth_ow - prev_ow);
-        double pos_diff = fabs(franka_x - prev_px) + fabs(franka_y - prev_py) + fabs(franka_z - prev_pz);
-
-        double arm_qx = data-> xquat[ee_body * 4 + 0];
-        double arm_qy = data-> xquat[ee_body * 4 + 1];
-        double arm_qz = data-> xquat[ee_body * 4 + 2];
-        double arm_qw = data-> xquat[ee_body * 4 + 3];
+        static double prev_px = 0.304, prev_py = 0.0, prev_pz = 0.644;
+        double ori_diff = fabs(smooth_ox - prev_ox) + fabs(smooth_oy - prev_oy) +
+                        fabs(smooth_oz - prev_oz) + fabs(smooth_ow - prev_ow);
+        double pos_diff = fabs(franka_x - prev_px) + fabs(franka_y - prev_py) +
+                        fabs(franka_z - prev_pz);
 
         if (haply_client.hasOrientation() && (ori_diff > 0.001 || pos_diff > 0.001)) {
             ik_solver->solve(data, franka_x, franka_y, franka_z,
-                            arm_qx, arm_qy, arm_qz, arm_qw, target_qpos);
+                            smooth_ox, smooth_oy, smooth_oz, smooth_ow,
+                            target_qpos);
             prev_ox = smooth_ox; prev_oy = smooth_oy;
             prev_oz = smooth_oz; prev_ow = smooth_ow;
             prev_px = franka_x; prev_py = franka_y; prev_pz = franka_z;
         }
+
         
         // std::cout << "IK input orientation: " << haply_ox << " " << haply_oy << " " << haply_oz << " " << haply_ow <<std::endl;
 

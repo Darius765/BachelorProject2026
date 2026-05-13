@@ -85,7 +85,7 @@ public:
 
         // Update target joint positions
         for (int i = 0; i < 7; i++) {
-            target_qpos[i] = data->qpos[i] + dq(i) * dt;
+            target_qpos[i] = target_qpos[i] + dq(i) * dt;
         }
     }
 
