@@ -165,7 +165,7 @@ int main() {
     double haply_px = 0.0, haply_py = 0.0, haply_pz = 0.0;
     double haply_fx = 0.0, haply_fy = 0.0, haply_fz = 0.0;
     double haply_ox = 0.0, haply_oy = 0.0, haply_oz = 0.0, haply_ow = 1.0;
-    double franka_x = 0.0, franka_y = 0.0, franka_z = 0.0;
+    double franka_x = 0.304, franka_y = 0.0, franka_z = 0.644;
 
     // Time control var
     std::chrono::steady_clock::time_point prev_time = std::chrono::steady_clock::now();
@@ -189,9 +189,36 @@ int main() {
         haply_client.getOrientation(haply_ox, haply_oy, haply_oz, haply_ow);
         coor_trans.transform(haply_px, haply_py, haply_pz, franka_x, franka_y, franka_z);
 
-        if (haply_client.hasOrientation()) {
+        // Smoothing
+        static double smooth_ox = 0.0, smooth_oy = 0.0, smooth_oz = 0.0, smooth_ow = 1.0;
+        double alpha = 0.1;
+        smooth_ox = smooth_ox * (1.0 - alpha) + haply_ox * alpha;
+        smooth_oy = smooth_oy * (1.0 - alpha) + haply_oy * alpha;
+        smooth_oz = smooth_oz * (1.0 - alpha) + haply_oz * alpha;
+        smooth_ow = smooth_ow * (1.0 - alpha) + haply_ow * alpha;
+
+        // Normalize
+        double norm = sqrt(smooth_ox*smooth_ox + smooth_oy*smooth_oy + smooth_oz*smooth_oz + smooth_ow*smooth_ow);
+        smooth_ox /= norm; smooth_oy /= norm;
+        smooth_oz /= norm; smooth_ow /= norm;
+
+        // Only update IK if input changed significantly
+        static double prev_ox = 0.0, prev_oy = 0.0, prev_oz = 0.0, prev_ow = 1.0;
+        static double prev_px = 0.0, prev_py = 0.0, prev_pz = 0.0;
+        double ori_diff = fabs(smooth_ox - prev_ox) + fabs(smooth_oy - prev_oy) + fabs(smooth_oz - prev_oz) + fabs(smooth_ow - prev_ow);
+        double pos_diff = fabs(franka_x - prev_px) + fabs(franka_y - prev_py) + fabs(franka_z - prev_pz);
+
+        double arm_qx = data-> xquat[ee_body * 4 + 0];
+        double arm_qy = data-> xquat[ee_body * 4 + 1];
+        double arm_qz = data-> xquat[ee_body * 4 + 2];
+        double arm_qw = data-> xquat[ee_body * 4 + 3];
+
+        if (haply_client.hasOrientation() && (ori_diff > 0.001 || pos_diff > 0.001)) {
             ik_solver->solve(data, franka_x, franka_y, franka_z,
-                             haply_ox, haply_oy, haply_oz, haply_ow, target_qpos);
+                            arm_qx, arm_qy, arm_qz, arm_qw, target_qpos);
+            prev_ox = smooth_ox; prev_oy = smooth_oy;
+            prev_oz = smooth_oz; prev_ow = smooth_ow;
+            prev_px = franka_x; prev_py = franka_y; prev_pz = franka_z;
         }
         
         // std::cout << "IK input orientation: " << haply_ox << " " << haply_oy << " " << haply_oz << " " << haply_ow <<std::endl;
