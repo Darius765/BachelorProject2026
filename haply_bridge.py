@@ -21,10 +21,12 @@ def tcp_sender(conn):
 async def haply_receiver():
     async with websockets.connect('ws://localhost:10001') as ws:
         print("Connected to Haply service")
+        # first_state = json.loads(await ws.recv())
+
         activate_msg = json.dumps({
             "inverse3": [{
                 "device_id": "05DA",
-                "command": {
+                "commands": {
                     "set_cursor_force": {"vector": {"x": 0, "y": 0, "z": 0}}
                 }
             }]
@@ -33,12 +35,17 @@ async def haply_receiver():
         while True:
             await ws.send(activate_msg)
             try:
-                msg = await asyncio.wait_for(ws.recv(), timeout=0.1)
+                msg = await asyncio.wait_for(ws.recv(), timeout=0.005)
                 data = json.loads(msg)
+                # print(f"data: {data}")
                 inv3 = data.get("inverse3", [])
+                grip = data.get("grip", [])
                 if inv3:
                     pos = inv3[0]["state"]["cursor_position"]
-                    print(f"Cursor: {pos['x']:.4f} {pos['y']:.4f} {pos['z']:.4f} mode: {inv3[0]['state']['mode']}")
+                    # print(f"Cursor: {pos['x']:.4f} {pos['y']:.4f} {pos['z']:.4f} mode: {inv3[0]['state']['mode']}")
+                if grip:
+                    ori = grip[0]["state"]["orientation"]
+                    # print(f"Grip: {ori['x']:.4f} {ori['y']:.4f} {ori['z']:.4f} {ori['w']:.4f}")
                 count += 1
                 try:
                     message_queue.put_nowait(msg)

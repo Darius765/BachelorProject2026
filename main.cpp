@@ -5,7 +5,8 @@
 #include <chrono>
 #include "haply_client.h"
 #include "coordinate_transform.h"
-#include "inverse_kinematics.h"
+// #include "inverse_kinematics.h"
+#include "external_ik.h"
 
 // MuJoCo model and data
 mjModel* model = nullptr;
@@ -203,49 +204,11 @@ int main() {
         Eigen::Quaterniond q_target = q_relative * init_ee_quat;
         q_target.normalize();
 
-        // Smooth the target orientation
-        static double smooth_ox = 0.0, smooth_oy = 0.0, smooth_oz = 0.0, smooth_ow = 1.0;
-        double alpha = 0.1;
-        smooth_ox = smooth_ox * (1.0 - alpha) + q_target.x() * alpha;
-        smooth_oy = smooth_oy * (1.0 - alpha) + q_target.y() * alpha;
-        smooth_oz = smooth_oz * (1.0 - alpha) + q_target.z() * alpha;
-        smooth_ow = smooth_ow * (1.0 - alpha) + q_target.w() * alpha;
-
-        // Normalize
-        double norm = sqrt(smooth_ox*smooth_ox + smooth_oy*smooth_oy +
-                        smooth_oz*smooth_oz + smooth_ow*smooth_ow);
-        smooth_ox /= norm; smooth_oy /= norm;
-        smooth_oz /= norm; smooth_ow /= norm;
-
-        // Only update IK if input changed significantly
-        static double prev_ox = 0.0, prev_oy = 0.0, prev_oz = 0.0, prev_ow = 1.0;
-        static double prev_px = 0.304, prev_py = 0.0, prev_pz = 0.644;
-        double ori_diff = fabs(smooth_ox - prev_ox) + fabs(smooth_oy - prev_oy) +
-                        fabs(smooth_oz - prev_oz) + fabs(smooth_ow - prev_ow);
-        double pos_diff = fabs(franka_x - prev_px) + fabs(franka_y - prev_py) +
-                        fabs(franka_z - prev_pz);
-
-        if (haply_client.hasOrientation() && (ori_diff > 0.001 || pos_diff > 0.001)) {
+        if (haply_client.hasOrientation()) {
             ik_solver->solve(data, franka_x, franka_y, franka_z,
-                            smooth_ox, smooth_oy, smooth_oz, smooth_ow,
+                            q_target.x(), q_target.y(), q_target.z(), q_target.w(),
                             target_qpos);
-            prev_ox = smooth_ox; prev_oy = smooth_oy;
-            prev_oz = smooth_oz; prev_ow = smooth_ow;
-            prev_px = franka_x; prev_py = franka_y; prev_pz = franka_z;
         }
-
-        
-        // std::cout << "IK input orientation: " << haply_ox << " " << haply_oy << " " << haply_oz << " " << haply_ow <<std::endl;
-
-        // double cur_ee_x = data->xpos[ee_body * 3 + 0];
-        // double cur_ee_y = data->xpos[ee_body * 3 + 1];
-        // double cur_ee_z = data->xpos[ee_body * 3 + 2];
-
-        // if (haply_client.hasOrientation()) {
-        //     //coor_trans.transform(haply_px, haply_py, haply_pz, franka_x, franka_y, franka_z);
-        //     ik_solver->solve(data, cur_ee_x, cur_ee_y, cur_ee_z, // TODO: REPLACE cur_ee_x VARS WITH franka_x, ... WHEN INVERSE3 WORKS
-        //                      haply_ox, haply_oy, haply_oz, haply_ow, target_qpos);
-        // }
 
         std::chrono::steady_clock::time_point cur_time = std::chrono::steady_clock::now();
         int elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - prev_time).count();
@@ -256,8 +219,6 @@ int main() {
             std::cout << "EE actual:     " << data->xpos[ee_body * 3 + 0] << " "
                                         << data->xpos[ee_body * 3 + 1] << " "
                                         << data->xpos[ee_body * 3 + 2] << std::endl;
-            std::cout << "pos_diff: " << fabs(franka_x - prev_px) + fabs(franka_y - prev_py) + fabs(franka_z - prev_pz) << std::endl;
-            std::cout << "ori_diff: " << fabs(smooth_ox - prev_ox) + fabs(smooth_oy - prev_oy) + fabs(smooth_oz - prev_oz) + fabs(smooth_ow - prev_ow) << std::endl;
         }
 
         mjrRect viewport = {0, 0, 0, 0};

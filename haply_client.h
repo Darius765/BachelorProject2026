@@ -52,7 +52,7 @@ public:
             return;
         }
 
-        // Set non-blocking
+
 #ifdef _WIN32
         u_long mode = 1;
         ioctlsocket(sock, FIONBIO, &mode);
@@ -75,26 +75,36 @@ public:
         std::cout << "Disconnected from Haply bridge" << std::endl;
     }
 
-    // Call this every frame from the main loop
     void update() {
         if (!connected) return;
 
         char buf[65536];
 #ifdef _WIN32
         int bytes = recv(sock, buf, sizeof(buf) - 1, 0);
+        if (bytes == SOCKET_ERROR) {
+            int err = WSAGetLastError();
+            if (err == WSAEWOULDBLOCK) return;  // no data available
+            connected = false;
+            return;
+        }
 #else
         int bytes = ::recv(sock, buf, sizeof(buf) - 1, 0);
+        if (bytes < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) return;  // no data
+            connected = false;
+            return;
+        }
 #endif
-        if (bytes > 0) {
-            buf[bytes] = '\0';
-            buffer += buf;
+        if (bytes == 0) { connected = false; return; }
 
-            size_t pos;
-            while ((pos = buffer.find('\n')) != std::string::npos) {
-                std::string msg = buffer.substr(0, pos);
-                buffer = buffer.substr(pos + 1);
-                parseMessage(msg);
-            }
+        buf[bytes] = '\0';
+        buffer += buf;
+
+        size_t pos;
+        while ((pos = buffer.find('\n')) != std::string::npos) {
+            std::string msg = buffer.substr(0, pos);
+            buffer = buffer.substr(pos + 1);
+            parseMessage(msg);
         }
     }
 

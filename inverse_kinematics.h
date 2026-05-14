@@ -3,6 +3,7 @@
 #include <mujoco/mujoco.h>
 #include <Eigen/Dense>
 #include <string>
+#include <algorithm>
 
 class IKSolver {
 public:
@@ -13,7 +14,7 @@ public:
 
     void solve(mjData* data, double target_x, double target_y, double target_z,
                double target_qx, double target_qy, double target_qz, double target_qw,
-               double* target_qpos, double dt = 0.002) {
+               double* target_qpos, double dt = 0.01) {
         int nv = model->nv;
 
         // Get current EE position
@@ -29,8 +30,8 @@ public:
 
         // Clamp position error to prevent large jumps
         double pos_magnitude = pos_error.norm();
-        if (pos_magnitude > 0.1) {
-            pos_error *= (0.1 / pos_magnitude);
+        if (pos_magnitude > 0.2) {
+            pos_error *= (0.2 / pos_magnitude);
         }
 
         // Get current EE orientation
@@ -56,8 +57,8 @@ public:
 
         // Create 6D error vector with balanced weights
         Eigen::VectorXd error(6);
-        error.head(3) = pos_error * 1.0;
-        error.tail(3) = ori_error * 1.0;
+        error.head(3) = pos_error * 2.0;
+        error.tail(3) = ori_error * 0.5;
 
         // Get full Jacobian
         Eigen::MatrixXd jac_pos = Eigen::MatrixXd::Zero(3, nv);
@@ -70,7 +71,7 @@ public:
         J.bottomRows(3) = jac_ori;
 
         // Damped pseudoinverse
-        double damping = 0.05;
+        double damping = 0.1;
         Eigen::JacobiSVD<Eigen::MatrixXd> svd(J, Eigen::ComputeThinU | Eigen::ComputeThinV);
         Eigen::VectorXd s = svd.singularValues();
         Eigen::MatrixXd sigma_inv = Eigen::MatrixXd::Zero(6, 6);
@@ -86,6 +87,12 @@ public:
         // Update target joint positions
         for (int i = 0; i < 7; i++) {
             target_qpos[i] = target_qpos[i] + dq(i) * dt;
+        }
+
+        const double joint_min[7] = {-2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973}; 
+        const double joint_max[7] ={ 2.8973,  1.7628,  2.8973, -0.0698,  2.8973,  3.7525, 2.8973}; 
+        for (int i = 0; i < 7; i++) { 
+            target_qpos[i] =std::max(joint_min[i], std::min(joint_max[i], target_qpos[i])); 
         }
     }
 
