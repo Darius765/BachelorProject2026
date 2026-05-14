@@ -21,25 +21,25 @@ def tcp_sender(conn):
 async def haply_receiver():
     async with websockets.connect('ws://localhost:10001') as ws:
         print("Connected to Haply service")
-       
-        # Send activation message to wake up the Inverse3
         activate_msg = json.dumps({
             "inverse3": [{
                 "device_id": "05DA",
                 "command": {
-                    "control_mode": "position"
+                    "set_cursor_force": {"vector": {"x": 0, "y": 0, "z": 0}}
                 }
             }]
         })
-       
         count = 0
         while True:
-
             await ws.send(activate_msg)
             try:
-                msg = await ws.recv()
+                msg = await asyncio.wait_for(ws.recv(), timeout=0.1)
+                data = json.loads(msg)
+                inv3 = data.get("inverse3", [])
+                if inv3:
+                    pos = inv3[0]["state"]["cursor_position"]
+                    print(f"Cursor: {pos['x']:.4f} {pos['y']:.4f} {pos['z']:.4f} mode: {inv3[0]['state']['mode']}")
                 count += 1
-                print(f"Received message #{count}")
                 try:
                     message_queue.put_nowait(msg)
                 except queue.Full:
@@ -47,7 +47,7 @@ async def haply_receiver():
             except asyncio.TimeoutError:
                 pass
 
-def main():
+async def main():
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind(('localhost', 10002))
@@ -59,6 +59,6 @@ def main():
     sender_thread = threading.Thread(target=tcp_sender, args=(conn,), daemon=True)
     sender_thread.start()
 
-    asyncio.run(haply_receiver())
+    await haply_receiver()
 
-main()
+asyncio.run(main())

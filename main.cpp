@@ -251,17 +251,13 @@ int main() {
         int elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(cur_time - prev_time).count();
         if (elapsed >= time_interval_ms) {
             prev_time = cur_time;
-            double ox, oy, oz, ow;
-            haply_client.getOrientation(ox, oy, oz, ow);
-            std::cout << "Orientation: " << ox << " " << oy << " " << oz << " " << ow << std::endl;
-            if (ee_body >= 0) {
-                std::cout << "End-effector position: "
-                        << data->xpos[ee_body * 3 + 0] << " "
-                        << data->xpos[ee_body * 3 + 1] << " "
-                        << data->xpos[ee_body * 3 + 2] << std::endl;
-            } else {
-                std::cout << "Body 'hand' not found!" << std::endl;
-            }
+            std::cout << "Haply raw pos: " << haply_px << " " << haply_py << " " << haply_pz << std::endl;
+            std::cout << "Franka target: " << franka_x << " " << franka_y << " " << franka_z << std::endl;
+            std::cout << "EE actual:     " << data->xpos[ee_body * 3 + 0] << " "
+                                        << data->xpos[ee_body * 3 + 1] << " "
+                                        << data->xpos[ee_body * 3 + 2] << std::endl;
+            std::cout << "pos_diff: " << fabs(franka_x - prev_px) + fabs(franka_y - prev_py) + fabs(franka_z - prev_pz) << std::endl;
+            std::cout << "ori_diff: " << fabs(smooth_ox - prev_ox) + fabs(smooth_oy - prev_oy) + fabs(smooth_oz - prev_oz) + fabs(smooth_ow - prev_ow) << std::endl;
         }
 
         mjrRect viewport = {0, 0, 0, 0};
