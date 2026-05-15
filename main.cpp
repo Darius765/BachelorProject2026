@@ -142,6 +142,8 @@ int main() {
     mjr_makeContext(model, &con, mjFONTSCALE_150);
     mjcb_control = control;
 
+    int table_geom = mj_name2id(model, mjOBJ_GEOM, "table_surface");
+
     // Haply client
     HaplyClient haply_client;
     CoordinateTransformation coor_trans;
@@ -175,6 +177,7 @@ int main() {
     double haply_fx = 0.0, haply_fy = 0.0, haply_fz = 0.0;
     double haply_ox = 0.0, haply_oy = 0.0, haply_oz = 0.0, haply_ow = 1.0;
     double franka_x = 0.304, franka_y = 0.0, franka_z = 0.644;
+    double contact_fx = 0.0, contact_fy = 0.0, contact_fz = 0.0;
 
     // Time control var
     std::chrono::steady_clock::time_point prev_time = std::chrono::steady_clock::now();
@@ -186,12 +189,22 @@ int main() {
 
         mj_step(model, data);
 
-        coor_trans.inverseTransform(
-            data->cfrc_ext[ee_body * 6 + 0],
-            data->cfrc_ext[ee_body * 6 + 1],
-            data->cfrc_ext[ee_body * 6 + 2],
-            haply_fx, haply_fy, haply_fz
-        );
+        if (data->ncon > 0) {
+            for (int i = 0; i < data->ncon; i++) {
+                mjContact& con = data->contact[i];
+                if (con.geom1 == table_geom || con.geom2 == table_geom) {
+                    
+                    double force[6];
+                    mj_contactForce(model, data, i, force);
+                    contact_fx = force[0];
+                    contact_fy = force[1];
+                    contact_fz = force[2];
+                }
+            }
+        }
+
+        coor_trans.inverseTransform(contact_fx, contact_fy, contact_fz,
+                                    haply_fx, haply_fy, haply_fz);
         haply_client.sendForce(haply_fx, haply_fy, haply_fz);
 
         haply_client.getPosition(haply_px, haply_py, haply_pz);
@@ -216,6 +229,7 @@ int main() {
             prev_time = cur_time;
             std::cout << "Haply raw pos: " << haply_px << " " << haply_py << " " << haply_pz << std::endl;
             std::cout << "Franka target: " << franka_x << " " << franka_y << " " << franka_z << std::endl;
+            std::cout << "Force feedback: " << haply_fx << " " << haply_fy << " " << haply_fz << std::endl;
             std::cout << "EE actual:     " << data->xpos[ee_body * 3 + 0] << " "
                                         << data->xpos[ee_body * 3 + 1] << " "
                                         << data->xpos[ee_body * 3 + 2] << std::endl;

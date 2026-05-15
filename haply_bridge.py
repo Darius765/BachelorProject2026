@@ -6,8 +6,34 @@ import threading
 import queue
 
 message_queue = queue.Queue(maxsize=10)
+force_queue = queue.Queue(maxsize=1)
+
+def tcp_receiver(conn):
+    """Receive force commands from C++"""
+    buffer = ""
+    while True:
+        try:
+            data = conn.recv(4096).decode()
+            if not data:
+                break
+            buffer += data
+            while '\n' in buffer:
+                line, buffer = buffer.split('\n', 1)
+                try:
+                    force_msg = json.loads(line)
+                    try:
+                        force_queue.get_nowait()
+                    except queue.Empty:
+                        pass
+                    force_queue.put_nowait(force_msg)
+                except json.JSONDecodeError:
+                    pass
+        except Exception as e:
+            print(f"TCP receive error: {e}")
+            break
 
 def tcp_sender(conn):
+    """Send Haply data to C++"""
     while True:
         try:
             msg = message_queue.get(timeout=1.0)
@@ -15,38 +41,31 @@ def tcp_sender(conn):
         except queue.Empty:
             continue
         except Exception as e:
-            print(f"TCP error: {e}")
+            print(f"TCP send error: {e}")
             break
 
 async def haply_receiver():
     async with websockets.connect('ws://localhost:10001') as ws:
         print("Connected to Haply service")
-        # first_state = json.loads(await ws.recv())
-
-        activate_msg = json.dumps({
-            "inverse3": [{
-                "device_id": "05DA",
-                "commands": {
-                    "set_cursor_force": {"vector": {"x": 0, "y": 0, "z": 0}}
-                }
-            }]
-        })
-        count = 0
         while True:
+            try:
+                force = force_queue.get_nowait()
+            except queue.Empty:
+                force = {"x": 0, "y": 0, "z": 0}
+
+            activate_msg = json.dumps({
+                "inverse3": [{
+                    "device_id": "05DA",
+                    "commands": {
+                        "set_cursor_force": {"vector": force}
+                    }
+                }]
+            })
+
             await ws.send(activate_msg)
+
             try:
                 msg = await asyncio.wait_for(ws.recv(), timeout=0.005)
-                data = json.loads(msg)
-                # print(f"data: {data}")
-                inv3 = data.get("inverse3", [])
-                grip = data.get("grip", [])
-                if inv3:
-                    pos = inv3[0]["state"]["cursor_position"]
-                    # print(f"Cursor: {pos['x']:.4f} {pos['y']:.4f} {pos['z']:.4f} mode: {inv3[0]['state']['mode']}")
-                if grip:
-                    ori = grip[0]["state"]["orientation"]
-                    # print(f"Grip: {ori['x']:.4f} {ori['y']:.4f} {ori['z']:.4f} {ori['w']:.4f}")
-                count += 1
                 try:
                     message_queue.put_nowait(msg)
                 except queue.Full:
@@ -54,7 +73,7 @@ async def haply_receiver():
             except asyncio.TimeoutError:
                 pass
 
-async def main():
+def main():
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind(('localhost', 10002))
@@ -66,6 +85,9 @@ async def main():
     sender_thread = threading.Thread(target=tcp_sender, args=(conn,), daemon=True)
     sender_thread.start()
 
-    await haply_receiver()
+    receiver_thread = threading.Thread(target=tcp_receiver, args=(conn,), daemon=True)
+    receiver_thread.start()
 
-asyncio.run(main())
+    asyncio.run(haply_receiver())
+
+main()

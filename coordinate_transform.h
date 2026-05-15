@@ -10,7 +10,7 @@ public:
         home_z = 0.644;
 
         // Scale factor
-        scale = 0.5;
+        scale = 1.5;
 
         // Neutral not set yet
         neutral_set = false;

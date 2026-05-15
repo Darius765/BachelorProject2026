@@ -117,7 +117,20 @@ public:
     }
 
     void sendForce(double fx, double fy, double fz) override {
-        // To be implemented later
+        if (!connected) return;
+        nlohmann::json msg = {
+            {"force_command", {
+                {"x", fx},
+                {"y", fy},
+                {"z", fz}
+            }}
+        };
+        std::string msg_str = msg.dump() + "\n";
+#ifdef _WIN32
+        send(sock, msg_str.c_str(), msg_str.size(), 0);
+#else
+        ::send(sock, msg_str.c_str(), msg_str.size(), 0);
+#endif
     }
 
 private:
