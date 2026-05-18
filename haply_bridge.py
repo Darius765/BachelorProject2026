@@ -7,6 +7,7 @@ import queue
 
 message_queue = queue.Queue(maxsize=10)
 force_queue = queue.Queue(maxsize=1)
+last_force = {"x": 0, "y": 0, "z": 0}
 
 def tcp_receiver(conn):
     """Receive force commands from C++"""
@@ -49,15 +50,17 @@ async def haply_receiver():
         print("Connected to Haply service")
         while True:
             try:
-                force = force_queue.get_nowait()
+
+                new_force = force_queue.get_nowait()
+                last_force.update(new_force)
             except queue.Empty:
-                force = {"x": 0, "y": 0, "z": 0}
+                pass
 
             activate_msg = json.dumps({
                 "inverse3": [{
                     "device_id": "05DA",
                     "commands": {
-                        "set_cursor_force": {"vector": force}
+                        "set_cursor_force": {"vector": last_force}
                     }
                 }]
             })

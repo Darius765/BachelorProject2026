@@ -193,18 +193,25 @@ int main() {
             for (int i = 0; i < data->ncon; i++) {
                 mjContact& con = data->contact[i];
                 if (con.geom1 == table_geom || con.geom2 == table_geom) {
-                    
-                    double force[6];
-                    mj_contactForce(model, data, i, force);
-                    contact_fx = force[0];
-                    contact_fy = force[1];
-                    contact_fz = force[2];
+                    if (i < data->ncon && con.efc_address >= 0) {
+                        double force[6];
+                        mj_contactForce(model, data, i, force);
+                        contact_fx = force[0];
+                        contact_fy = force[1];
+                        contact_fz = force[2];
+                    }
                 }
             }
         }
 
         coor_trans.inverseTransform(contact_fx, contact_fy, contact_fz,
                                     haply_fx, haply_fy, haply_fz);
+
+        if (fabsl(contact_fx) > 1.0 || fabsl(contact_fy) > 1.0 || fabsl(contact_fz) > 1.0) {
+            std::cout << "Contact force: " << contact_fx << " " << contact_fy << " " << contact_fz << std::endl;
+            std::cout << "Mapped Haply force: " << haply_fx << " " << haply_fy << " " << haply_fz << std::endl;
+        }
+
         haply_client.sendForce(haply_fx, haply_fy, haply_fz);
 
         haply_client.getPosition(haply_px, haply_py, haply_pz);
