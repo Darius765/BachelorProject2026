@@ -28,8 +28,8 @@ def generate_wipe_markers(
             direction += rng.normal(0, 0.5)
        
         for _ in range(100):
-            x = pos[0] + 0.005 * np.sin(direction)
-            y = pos[1] + 0.005 * np.cos(direction)
+            x = pos[0] + 0.1 * np.sin(direction)
+            y = pos[1] + 0.1 * np.cos(direction)
             if (abs(x) < table_size[0] * coverage_factor - line_width/2 and
                 abs(y) < table_size[1] * coverage_factor - line_width/2):
                 return np.array([x, y]), direction
@@ -79,8 +79,11 @@ def add_wipe_scene_to_model(model_path, output_path, num_markers=20):
 
     # Generate and add wipe markers
     markers = generate_wipe_markers(
-        num_markers=num_markers,
-        table_size=(table_x, table_y)
+        num_markers = num_markers,
+        table_size = (0.2, 0.3),
+        coverage_factor = 0.9,
+        line_width = 0.02,
+        seed = None
     )
    
     for name, (mx, my) in markers:
@@ -106,6 +109,6 @@ if __name__ == "__main__":
     markers = add_wipe_scene_to_model(
         "../models/panda.xml",
         "../models/panda_wipe.xml",
-        num_markers=20
+        num_markers=10
     )
     print(f"Markers: {markers}")

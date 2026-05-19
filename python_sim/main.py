@@ -37,10 +37,15 @@ mujoco.mj_forward(model, data)
 ee_body = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "hand")
 q_arm_init = data.xquat[ee_body].copy()
 
+for i in range(model.nbody):
+    name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, i)
+    if name:
+        print(f"Body: {name}, ID: {i}")
+
 print("Model loaded successfully")
 print(f"Number of joints: {model.njnt}")
 
-task = WipeTask(model, data, num_markers=20)
+task = WipeTask(model, data, num_markers=10)
 task.setup()
 
 # ── Haply WebSocket client ───────────────────────────────────
