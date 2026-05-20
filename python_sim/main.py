@@ -38,12 +38,12 @@ mujoco.mj_forward(model, data)
 ee_body = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "hand")
 q_arm_init = data.xquat[ee_body].copy()
 
-for i in range(model.nbody):
-    name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, i)
-    if name:
-        print(f"Body: {name}, ID: {i}")
-
 print("Model loaded successfully")
+
+for i in range(model.nu):
+    joint_id = model.actuator_trnid[i, 0]
+    joint_name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, joint_id)
+    print(f"Actuator {i}: controls joint '{joint_name}'")
 
 safety = SafetyLimits(model, data)
 
@@ -86,6 +86,10 @@ async def haply_client():
                         ori = grip[0]["state"]["orientation"]
                         haply_state["orientation"] = np.array([ori["x"], ori["y"], ori["z"], ori["w"]])
                         haply_state["has_orientation"] = True
+                        buttons = grip[0]["state"]["buttons"]
+                        haply_state["button_a"] = buttons.get("a", False)
+                        haply_state["button_b"] = buttons.get("b", False)
+                        haply_state["button_c"] = buttons.get("c", False)
 
             except asyncio.TimeoutError:
                 pass
@@ -263,10 +267,7 @@ with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as vie
         ee_force = jacp @ qfrc_ext
         ee_torque = jacr @ qfrc_ext
 
-        print(f"EE force: {ee_force.round(3)}, torque: {ee_torque.round(3)}")
-        print(f"norm: {np.linalg.norm(ee_force):.3f}")
-
-
+        # Safety checks
         safe_qpos, safety_status = safety.apply(target_qpos, ee_body, ee_force, ee_torque)
         target_qpos = safe_qpos
 
@@ -276,6 +277,19 @@ with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as vie
             print("Workspace limit violated! Holding position.")
         elif safety_status["joint_limit"]:
             print("Joint limit violated! Holding position.")
+
+        # Gripper control
+        with state_lock:
+            btn_a = haply_state.get("button_a", False)
+            btn_b = haply_state.get("button_b", False)
+        
+        gripper_open = 0.04
+        gripper_closed = 0.0
+
+        if btn_a:
+            data.ctrl[7] = gripper_open
+        elif btn_b:
+            data.ctrl[7] = gripper_closed
         
         pd_control()
 
