@@ -10,6 +10,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from tasks.wipe_task import WipeTask
+from safety import SafetyLimits
 
 # ── Configuration ────────────────────────────────────────────
 MODEL_PATH = "../models/panda_wipe.xml"
@@ -43,7 +44,8 @@ for i in range(model.nbody):
         print(f"Body: {name}, ID: {i}")
 
 print("Model loaded successfully")
-print(f"Number of joints: {model.njnt}")
+
+safety = SafetyLimits(model, data)
 
 task = WipeTask(model, data, num_markers=10)
 task.setup()
@@ -196,15 +198,23 @@ def pd_control():
 smooth_force = np.zeros(3)
 smoothing_factor = 0.2
 force_scale = 0.02
-max_force = 0.5
+max_force = 1.0
 smooth_ori = haply_state["orientation"].copy()
 alpha_ori = 0.2
+
+# ── Keyboard interrupts ─────────────────────────────────────────
+def key_callback(keycode):
+    if keycode == ord(''):
+        safety.trigger_estop("Spacebar pressed")
+    elif keycode == ord('r'):
+        safety.reset_estop()
+        print("ESTOP reset")
 
 # ── Main simulation loop ─────────────────────────────────────
 prev_time = time.time()
 time_interval = 0.5
 
-with mujoco.viewer.launch_passive(model, data) as viewer:
+with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as viewer:
     viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_CONTACTPOINT] = False
     viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_CONTACTFORCE] = False
     viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_JOINT] = False
@@ -220,7 +230,7 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
             has_pos = haply_state["has_position"]
             has_ori = haply_state["has_orientation"]
 
-        if has_pos and has_ori:
+        if has_pos and has_ori and not safety.is_estop():
             # Smooth orientation
             smooth_ori = smooth_ori * (1 - alpha_ori) + haply_ori * alpha_ori
             smooth_ori /= np.linalg.norm(smooth_ori)
@@ -229,12 +239,8 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
             franka_quat = transform_orientation(smooth_ori)
             solve_ik(franka_pos, franka_quat)
 
-        pd_control()
 
-        # Task update
-        task.step(ee_body)
-
-        # Contact forces
+        # Compute end-effector forces for feedback
         # contact_force = np.zeros(3)
         # contact_geoms = task.get_contact_geoms()
         # for i in range(data.ncon):
@@ -260,24 +266,35 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
         print(f"EE force: {ee_force.round(3)}, torque: {ee_torque.round(3)}")
         print(f"norm: {np.linalg.norm(ee_force):.3f}")
 
+
+        safe_qpos, safety_status = safety.apply(target_qpos, ee_body, ee_force, ee_torque)
+        target_qpos = safe_qpos
+
+        if safety_status["estop"]:
+            pass
+        elif safety_status["workspace_violation"]:
+            print("Workspace limit violated! Holding position.")
+        elif safety_status["joint_limit"]:
+            print("Joint limit violated! Holding position.")
+        
+        pd_control()
+
+        # Task update
+        task.step(ee_body)
+
         if np.linalg.norm(ee_force) > 0.5:
             smooth_force = smooth_force * (1 - smoothing_factor) + ee_force * smoothing_factor
         else:
             smooth_force = smooth_force * (1 - smoothing_factor)
 
         # Apply force feedback
-        if np.linalg.norm(smooth_force) > 0.1:
-            franka_vel = np.array([-cursor_velocity[0], -cursor_velocity[1], cursor_velocity[2]])
-            force_dir = smooth_force / (np.linalg.norm(smooth_force) + 1e-6)
-            print(f"Smoothed: {smooth_force.round(3)}")
-
+        if np.linalg.norm(smooth_force) > 0.1: 
             fx = float(-smooth_force[0] * force_scale)
             fy = float(-smooth_force[1] * force_scale)
             fz = float(smooth_force[2] * force_scale)
             fx = max(-max_force, min(max_force, fx))
             fy = max(-max_force, min(max_force, fy))
             fz = max(-max_force, min(max_force, fz))
-
         else:
             fx = fy = fz = 0.0
 
@@ -294,6 +311,7 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
         cur_time = time.time()
         if cur_time - prev_time >= time_interval:
             prev_time = cur_time
-            print(f"Task: {task.get_status()} | Haply raw: {haply_pos.round(3)} | EE: {data.xpos[ee_body].round(3)}")
+            if safety.is_estop():
+                print("ESTOP ENGAGED! Holding position.")
             if task.is_complete():
                 print("Task complete!")
