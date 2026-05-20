@@ -235,33 +235,49 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
         task.step(ee_body)
 
         # Contact forces
-        contact_force = np.zeros(3)
-        contact_geoms = task.get_contact_geoms()
-        for i in range(data.ncon):
-            con = data.contact[i]
-            if con.geom1 in contact_geoms or con.geom2 in contact_geoms:
-                force = np.zeros(6)
-                mujoco.mj_contactForce(model, data, i, force)
-                contact_force += force[:3]
+        # contact_force = np.zeros(3)
+        # contact_geoms = task.get_contact_geoms()
+        # for i in range(data.ncon):
+        #     con = data.contact[i]
+        #     if con.geom1 in contact_geoms or con.geom2 in contact_geoms:
+        #         force = np.zeros(6)
+        #         mujoco.mj_contactForce(model, data, i, force)
+        #         contact_force += force[:3]
 
-        # Smooth force
-        smooth_force = smooth_force * (1 - smoothing_factor) + contact_force * smoothing_factor
+        # # Smooth force
+        # smooth_force = smooth_force * (1 - smoothing_factor) + contact_force * smoothing_factor
+
+        nv = model.nv
+        jacp = np.zeros((3, nv))
+        jacr = np.zeros((3, nv))
+        mujoco.mj_jacBody(model, data, jacp, jacr, ee_body)
+
+        qfrc_ext = data.qfrc_constraint.copy()
+
+        ee_force = jacp @ qfrc_ext
+        ee_torque = jacr @ qfrc_ext
+
+        print(f"EE force: {ee_force.round(3)}, torque: {ee_torque.round(3)}")
+        print(f"norm: {np.linalg.norm(ee_force):.3f}")
+
+        if np.linalg.norm(ee_force) > 0.5:
+            smooth_force = smooth_force * (1 - smoothing_factor) + ee_force * smoothing_factor
+        else:
+            smooth_force = smooth_force * (1 - smoothing_factor)
 
         # Apply force feedback
         if np.linalg.norm(smooth_force) > 0.1:
             franka_vel = np.array([-cursor_velocity[0], -cursor_velocity[1], cursor_velocity[2]])
             force_dir = smooth_force / (np.linalg.norm(smooth_force) + 1e-6)
-            moving_into = np.dot(franka_vel, force_dir)
+            print(f"Smoothed: {smooth_force.round(3)}")
 
-            if moving_into > 0:
-                fx = float(-smooth_force[0] * force_scale)
-                fy = float(-smooth_force[1] * force_scale)
-                fz = float(smooth_force[2] * force_scale)
-                fx = max(-max_force, min(max_force, fx))
-                fy = max(-max_force, min(max_force, fy))
-                fz = max(-max_force, min(max_force, fz))
-            else:
-                fx = fy = fz = 0.0
+            fx = float(-smooth_force[0] * force_scale)
+            fy = float(-smooth_force[1] * force_scale)
+            fz = float(smooth_force[2] * force_scale)
+            fx = max(-max_force, min(max_force, fx))
+            fy = max(-max_force, min(max_force, fy))
+            fz = max(-max_force, min(max_force, fz))
+
         else:
             fx = fy = fz = 0.0
 
@@ -278,6 +294,6 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
         cur_time = time.time()
         if cur_time - prev_time >= time_interval:
             prev_time = cur_time
-            print(f"Task: {task.get_status()} | EE: {data.xpos[ee_body].round(3)}")
+            print(f"Task: {task.get_status()} | Haply raw: {haply_pos.round(3)} | EE: {data.xpos[ee_body].round(3)}")
             if task.is_complete():
                 print("Task complete!")

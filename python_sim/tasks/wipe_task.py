@@ -44,7 +44,7 @@ class WipeTask(BaseTask):
             if active:
                 marker_pos = self.data.xpos[bid].copy()
                 dist = np.linalg.norm(ee_pos[:2] - marker_pos[:2])
-                if dist < 0.01:
+                if dist < 0.03:
                     self.marker_active[i] = False
                     self.wiped_count += 1
 

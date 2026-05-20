@@ -54,12 +54,12 @@ def add_wipe_scene_to_model(model_path, output_path, num_markers=20):
     table_x = 0.4  # half size
     table_y = 0.4  # half size
     table_z = 0.02  # half height
-    table_height = 0.4  # height of table surface from ground
+    table_height = 0.40  # height of table surface from ground
    
     # Add table
     table_body = ET.SubElement(worldbody, "body")
     table_body.set("name", "wipe_table")
-    table_body.set("pos", f"0.5 0 {table_height}")
+    table_body.set("pos", f"0.45 -0.15 {table_height}")
    
     table_geom = ET.SubElement(table_body, "geom")
     table_geom.set("name", "wipe_table_surface")
@@ -89,7 +89,7 @@ def add_wipe_scene_to_model(model_path, output_path, num_markers=20):
     for name, (mx, my) in markers:
         marker_body = ET.SubElement(table_body, "body")
         marker_body.set("name", name)
-        marker_body.set("pos", f"{mx} {my} {table_z + 0.001}")
+        marker_body.set("pos", f"{mx} {my + 0.1} {table_z + 0.001}")
        
         marker_geom = ET.SubElement(marker_body, "geom")
         marker_geom.set("name", f"{name}_geom")
