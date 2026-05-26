@@ -10,12 +10,18 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from tasks.wipe_task import WipeTask
+from tasks.nut_pole_task import NutAssemblyTask
+from tasks.drawer_task import DrawerTask
 from safety import SafetyLimits
 
 # ── Configuration ────────────────────────────────────────────
-MODEL_PATH = "../models/panda_wipe.xml"
+WIPE_MODEL_PATH = "../models/panda_wipe.xml"
+NUT_MODEL_PATH = "../models/panda_nut.xml"
+DRAWER_MODEL_PATH = "../models/panda_drawer.xml"
 HAPLY_WS_URL = "ws://localhost:10001"
 HAPLY_DEVICE_ID = "05DA"
+
+task_choice = "drawer"  # "wipe", "nut", or "drawer"
 
 # ── Shared state between threads ─────────────────────────────
 haply_state = {
@@ -29,7 +35,17 @@ force_command = {"x": 0.0, "y": 0.0, "z": 0.0}
 state_lock = threading.Lock()
 
 # ── Load MuJoCo model ────────────────────────────────────────
-model = mujoco.MjModel.from_xml_path(MODEL_PATH)
+match task_choice:
+    case "wipe":
+        model = mujoco.MjModel.from_xml_path(WIPE_MODEL_PATH)
+    case "nut":
+        model = mujoco.MjModel.from_xml_path(NUT_MODEL_PATH)
+    case "drawer":
+        model = mujoco.MjModel.from_xml_path(DRAWER_MODEL_PATH)
+    case _:
+        print(f"Unknown task choice: {task_choice}")
+        sys.exit(1)
+
 data = mujoco.MjData(model)
 
 data.qpos[:7] = [0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785]
@@ -47,7 +63,19 @@ for i in range(model.nu):
 
 safety = SafetyLimits(model, data)
 
-task = WipeTask(model, data, num_markers=10)
+
+# ── Task setup ─────────────────────────────────────────────────
+match task_choice:
+    case "wipe":
+        task = WipeTask(model, data, num_markers=10)
+    case "nut":
+        task = NutAssemblyTask(model, data)
+    case "drawer":
+        task = DrawerTask(model, data)
+    case _:
+        print(f"Unknown task choice: {task_choice}")
+        sys.exit(1)
+
 task.setup()
 
 # ── Haply WebSocket client ───────────────────────────────────
