@@ -95,8 +95,8 @@ def add_nut_assembly_scene(model_path, output_path):
         g.set("pos", pos)
         g.set("size", size)
         g.set("material", "bmetal")
-        g.set("density", "100")
-        g.set("friction", "0.95 0.3 0.2")
+        g.set("density", "50")
+        g.set("friction", "2.0 1.0 0.5")
 
     tree.write(output_path)
     print(f"Nut assembly scene written to {output_path}")

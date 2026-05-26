@@ -21,7 +21,7 @@ DRAWER_MODEL_PATH = "../models/panda_drawer.xml"
 HAPLY_WS_URL = "ws://localhost:10001"
 HAPLY_DEVICE_ID = "05DA"
 
-task_choice = "nut"  # "wipe", "nut", or "drawer"
+task_choice = "drawer"  # "wipe", "nut", or "drawer"
 
 # ── Shared state between threads ─────────────────────────────
 haply_state = {
