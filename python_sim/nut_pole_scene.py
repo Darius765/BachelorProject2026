@@ -75,7 +75,7 @@ def add_nut_assembly_scene(model_path, output_path):
     # ── Square nut (free to move) ─────────────────────────────
     nut_body = ET.SubElement(worldbody, "body")
     nut_body.set("name", "nut")
-    nut_body.set("pos", "0.35 -0.1 0.4")
+    nut_body.set("pos", "0.35 0.1 0.4")
     nut_body.set("quat", "0 0 0 1")
 
     nut_joint = ET.SubElement(nut_body, "joint")

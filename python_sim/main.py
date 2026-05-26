@@ -21,7 +21,7 @@ DRAWER_MODEL_PATH = "../models/panda_drawer.xml"
 HAPLY_WS_URL = "ws://localhost:10001"
 HAPLY_DEVICE_ID = "05DA"
 
-task_choice = "drawer"  # "wipe", "nut", or "drawer"
+task_choice = "nut"  # "wipe", "nut", or "drawer"
 
 # ── Shared state between threads ─────────────────────────────
 haply_state = {
@@ -310,8 +310,11 @@ with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as vie
         with state_lock:
             btn_a = haply_state.get("button_a", False)
             btn_b = haply_state.get("button_b", False)
+
+        if btn_a or btn_b:
+            print(f"Button states - A: {btn_a}, B: {btn_b}")
         
-        gripper_open = 0.04
+        gripper_open = 255
         gripper_closed = 0.0
 
         if btn_a:

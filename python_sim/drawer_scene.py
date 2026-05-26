@@ -160,7 +160,7 @@ def add_drawer_scene(model_path, output_path):
         g.set("size", size)
         g.set("material", "bowl-mat")
         g.set("density", "100")
-        g.set("friction", "0.8 0.3 0.1")
+        g.set("friction", "2.0 1.0 0.5")
 
     tree.write(output_path)
     print(f"Drawer scene written to {output_path}")
