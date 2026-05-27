@@ -85,8 +85,8 @@ def add_drawer_scene(model_path, output_path):
     drawer_joint.set("type", "slide")
     drawer_joint.set("axis", "1 0 0")
     drawer_joint.set("range", "0 0.2")
-    drawer_joint.set("damping", "5")
-    drawer_joint.set("frictionloss", "2")
+    drawer_joint.set("damping", "0.2")
+    drawer_joint.set("frictionloss", "0.1")
 
     # Drawer bottom
     g = ET.SubElement(drawer_body, "geom")
@@ -119,11 +119,30 @@ def add_drawer_scene(model_path, output_path):
 
     # Drawer handle
     g = ET.SubElement(drawer_body, "geom")
-    g.set("name", "drawer_handle")
+    g.set("name", "drawer_handle_left")
     g.set("type", "cylinder")
     g.set("size", "0.008 0.04")
-    g.set("pos", "0.145 0 0.04")
-    g.set("quat", "0.7071 0 0.7071 0")
+    g.set("pos", "0.188 0.04 0")
+    g.set("euler", "0 1.5708 0")
+    g.set("friction", "0.8 0.3 0.1")
+    g.set("material", "metal-mat")
+
+    g = ET.SubElement(drawer_body, "geom")
+    g.set("name", "drawer_handle_right")
+    g.set("type", "cylinder")
+    g.set("size", "0.008 0.04")
+    g.set("pos", "0.188 -0.04 0")
+    g.set("euler", "0 1.5708 0")
+    g.set("friction", "0.8 0.3 0.1")
+    g.set("material", "metal-mat")
+
+    g = ET.SubElement(drawer_body, "geom")
+    g.set("name", "drawer_handle_bar")
+    g.set("type", "cylinder")
+    g.set("size", "0.008 0.04")
+    g.set("pos", "0.223 0 0")
+    g.set("euler", "1.5708 0 0")
+    g.set("friction", "0.8 0.3 0.1")
     g.set("material", "metal-mat")
 
     
