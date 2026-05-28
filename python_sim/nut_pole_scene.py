@@ -46,6 +46,12 @@ def add_nut_assembly_scene(model_path, output_path):
     table_geom.set("type", "box")
     table_geom.set("size", "0.3 0.3 0.02")
     table_geom.set("rgba", "0.8 0.8 0.8 1")
+    table_geom.set("contype", "1")
+    table_geom.set("conaffinity", "1")
+    table_geom.set("condim", "4")
+    table_geom.set("solimp", "0.99 0.999 0.001")
+    table_geom.set("solref", "0.01 1")
+    table_geom.set("friction", "1 0.5 0.1")
 
     for i, (lx, ly) in enumerate([(0.25, 0.25), (-0.25, 0.25), (0.25, -0.25), (-0.25, -0.25)]):
         leg = ET.SubElement(table_body, "geom")
@@ -62,12 +68,17 @@ def add_nut_assembly_scene(model_path, output_path):
 
     peg1_col = ET.SubElement(peg1_body, "geom")
     peg1_col.set("type", "box")
-    peg1_col.set("size", "0.016 0.016 0.06")
+    peg1_col.set("size", "0.016 0.016 0.1")
     peg1_col.set("friction", "1 0.005 0.0001")
+    peg1_col.set("solimp", "0.99 0.999 0.001")
+    peg1_col.set("solref", "0.01 1")
+    peg1_col.set("condim", "4")
+    peg1_col.set("conaffinity", "1")
+    peg1_col.set("contype", "1")
 
     peg1_vis = ET.SubElement(peg1_body, "geom")
     peg1_vis.set("type", "box")
-    peg1_vis.set("size", "0.016 0.016 0.06")
+    peg1_vis.set("size", "0.016 0.016 0.1")
     peg1_vis.set("conaffinity", "0")
     peg1_vis.set("contype", "0")
     peg1_vis.set("material", "bmetal")
@@ -83,11 +94,11 @@ def add_nut_assembly_scene(model_path, output_path):
     nut_joint.set("type", "free")
 
     nut_geoms = [
-        ("-0.03325 0 0",   "0.0105 0.04375 0.01"),
-        ("0.0 0.03325 0",  "0.03125 0.0105 0.01"),
-        ("0.0 -0.03325 0", "0.03125 0.0105 0.01"),
-        ("0.03325 0 0",    "0.0105 0.04375 0.01"),
-        ("0.054 0 0",      "0.02525 0.015875 0.01"),
+        ("-0.03325 0 0",   "0.0105 0.04375 0.015"),
+        ("0.0 0.03325 0",  "0.03125 0.0105 0.015"),
+        ("0.0 -0.03325 0", "0.03125 0.0105 0.015"),
+        ("0.03325 0 0",    "0.0105 0.04375 0.015"),
+        ("0.08 0 0",      "0.05 0.015875 0.015"),
     ]
     for pos, size in nut_geoms:
         g = ET.SubElement(nut_body, "geom")
@@ -95,8 +106,13 @@ def add_nut_assembly_scene(model_path, output_path):
         g.set("pos", pos)
         g.set("size", size)
         g.set("material", "bmetal")
-        g.set("density", "50")
+        g.set("density", "1")
         g.set("friction", "2.0 1.0 0.5")
+        g.set("condim", "4")
+        g.set("conaffinity", "1")
+        g.set("contype", "1")
+        g.set("solimp", "0.99 0.999 0.001")
+        g.set("solref", "0.01 1")
 
     tree.write(output_path)
     print(f"Nut assembly scene written to {output_path}")
