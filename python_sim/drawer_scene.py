@@ -155,22 +155,13 @@ def add_drawer_scene(model_path, output_path):
     bowl_joint.set("name", "bowl_free")
     bowl_joint.set("type", "free")
 
-    # Bowl base
-    g = ET.SubElement(bowl_body, "geom")
-    g.set("name", "bowl_base")
-    g.set("type", "cylinder")
-    g.set("size", "0.055 0.005")
-    g.set("pos", "0 0 -0.02")
-    g.set("material", "bowl-mat")
-    g.set("density", "200")
-    g.set("friction", "0.8 0.3 0.1")
-
-    # Bowl walls — 4 thin boxes arranged in a ring
+    # Bowl sides
     for name, pos, size in [
-        ("bowl_wall_front", "0  0.05 0.01",  "0.055 0.005 0.03"),
-        ("bowl_wall_back",  "0 -0.05 0.01",  "0.055 0.005 0.03"),
-        ("bowl_wall_left",  "0.05 0 0.01",   "0.005 0.055 0.03"),
-        ("bowl_wall_right", "-0.05 0 0.01",  "0.005 0.055 0.03"),
+        ("bowl_bottom", "0 0 -0.02", "0.035 0.035 0.005"),
+        ("bowl_wall_front", "0  0.03 0.01",  "0.035 0.005 0.03"),
+        ("bowl_wall_back",  "0 -0.03 0.01",  "0.035 0.005 0.03"),
+        ("bowl_wall_left",  "0.03 0 0.01",   "0.005 0.035 0.03"),
+        ("bowl_wall_right", "-0.03 0 0.01",  "0.005 0.035 0.03"),
     ]:
         g = ET.SubElement(bowl_body, "geom")
         g.set("name", name)
