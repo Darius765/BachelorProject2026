@@ -21,7 +21,7 @@ DRAWER_MODEL_PATH = "../models/panda_drawer.xml"
 HAPLY_WS_URL = "ws://localhost:10001"
 HAPLY_DEVICE_ID = "05DA"
 
-task_choice = "drawer"  # "wipe", "nut", or "drawer"
+task_choice = "wipe"  # "wipe", "nut", or "drawer"
 
 # ── Shared state between threads ─────────────────────────────
 haply_state = {
@@ -140,11 +140,15 @@ print(f"Initial orientation: {haply_state['orientation']}")
 # ── Coordinate transform ─────────────────────────────────────
 neutral_pos = haply_state["position"].copy()
 ref_orientation = haply_state["orientation"].copy()
+clutch_neutral_pos = neutral_pos.copy()
+clutch_ref_ori = ref_orientation.copy()
+clutch_saved_qpos = None
+clutch_saved_smooth_ori = None
 home_pos = np.array([0.304, 0.000, 0.65])
 scale = 1.0
 
 def transform_position(haply_pos):
-    rel = haply_pos - neutral_pos
+    rel = haply_pos - clutch_neutral_pos
     return home_pos + np.array([-rel[0], -rel[1], rel[2]]) * scale
 
 def quat_multiply(q1, q2):
@@ -163,7 +167,7 @@ def quat_inverse(q):
 
 def transform_orientation(haply_ori):
     q_current = np.array([haply_ori[3], haply_ori[0], haply_ori[1], haply_ori[2]])
-    q_ref = np.array([ref_orientation[3], ref_orientation[0], ref_orientation[1], ref_orientation[2]])
+    q_ref = np.array([clutch_ref_ori[3], clutch_ref_ori[0], clutch_ref_ori[1], clutch_ref_ori[2]])
     q_relative = quat_multiply(q_current, quat_inverse(q_ref))
     q_target = quat_multiply(q_relative, q_arm_init)
     q_target /= np.linalg.norm(q_target)
@@ -252,6 +256,9 @@ with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as vie
     viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_JOINT] = False
     viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_ACTUATOR] = False
 
+    clutch_active = False
+    prev_clutch = False
+
     print("Simulation running!")
     while viewer.is_running():
         # Get Haply data
@@ -263,27 +270,17 @@ with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as vie
             has_ori = haply_state["has_orientation"]
 
         if has_pos and has_ori and not safety.is_estop():
-            # Smooth orientation
-            smooth_ori = smooth_ori * (1 - alpha_ori) + haply_ori * alpha_ori
-            smooth_ori /= np.linalg.norm(smooth_ori)
-
-            franka_pos = transform_position(haply_pos)
-            franka_quat = transform_orientation(smooth_ori)
-            solve_ik(franka_pos, franka_quat)
-
-
-        # Compute end-effector forces for feedback
-        # contact_force = np.zeros(3)
-        # contact_geoms = task.get_contact_geoms()
-        # for i in range(data.ncon):
-        #     con = data.contact[i]
-        #     if con.geom1 in contact_geoms or con.geom2 in contact_geoms:
-        #         force = np.zeros(6)
-        #         mujoco.mj_contactForce(model, data, i, force)
-        #         contact_force += force[:3]
-
-        # # Smooth force
-        # smooth_force = smooth_force * (1 - smoothing_factor) + contact_force * smoothing_factor
+            if not clutch_active:
+                # Smooth orientation
+                smooth_ori = smooth_ori * (1 - alpha_ori) + haply_ori * alpha_ori
+                smooth_ori /= np.linalg.norm(smooth_ori)
+            
+            if clutch_active and clutch_saved_qpos is not None:
+                target_qpos = clutch_saved_qpos.copy()
+            else:
+                franka_pos = transform_position(haply_pos)
+                franka_quat = transform_orientation(smooth_ori)
+                solve_ik(franka_pos, franka_quat)
 
         nv = model.nv
         jacp = np.zeros((3, nv))
@@ -310,9 +307,21 @@ with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as vie
         with state_lock:
             btn_a = haply_state.get("button_a", False)
             btn_b = haply_state.get("button_b", False)
+            btn_c = haply_state.get("button_c", False)
 
-        if btn_a or btn_b:
-            print(f"Button states - A: {btn_a}, B: {btn_b}")
+        if btn_c and not prev_clutch:
+            clutch_active = True
+            clutch_saved_qpos = target_qpos.copy()
+            clutch_saved_smooth_ori = smooth_ori.copy()
+            print("Clutch engaged")
+
+        elif not btn_c and prev_clutch:
+            clutch_active = False
+            clutch_neutral_pos = haply_pos.copy()
+            clutch_ref_ori = clutch_saved_smooth_ori.copy()
+            print("Clutch released")
+
+        prev_clutch = btn_c
         
         gripper_open = 255
         gripper_closed = 0.0
@@ -321,7 +330,7 @@ with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as vie
             data.ctrl[7] = gripper_open
         elif btn_b:
             data.ctrl[7] = gripper_closed
-        
+
         pd_control()
 
         # Task update
