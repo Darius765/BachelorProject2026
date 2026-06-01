@@ -35,11 +35,6 @@ class SafetyLimits:
         # ── Velocity smoothing ───────────────────────────────
         self.prev_target_qpos = None
 
-        print("Safety limits initialized")
-        print(f"Workspace: x={self.workspace_min[0]:.2f}-{self.workspace_max[0]:.2f} "
-              f"y={self.workspace_min[1]:.2f}-{self.workspace_max[1]:.2f} "
-              f"z={self.workspace_min[2]:.2f}-{self.workspace_max[2]:.2f}")
-
     def trigger_estop(self, reason="Manual trigger"):
         """Trigger emergency stop"""
         self.estop = True

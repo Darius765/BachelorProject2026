@@ -22,7 +22,7 @@ DRAWER_MODEL_PATH = "../models/panda_drawer.xml"
 HAPLY_WS_URL = "ws://localhost:10001"
 HAPLY_DEVICE_ID = "05DA"
 
-task_choice = "nut"  # "empty", "wipe", "nut", or "drawer"
+task_choice = "wipe"  # "empty", "wipe", "nut", or "drawer"
 force_feedback_enabled = True
 
 # ── Shared state between threads ─────────────────────────────
@@ -63,7 +63,6 @@ print("Model loaded successfully")
 for i in range(model.nu):
     joint_id = model.actuator_trnid[i, 0]
     joint_name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, joint_id)
-    print(f"Actuator {i}: controls joint '{joint_name}'")
 
 safety = SafetyLimits(model, data)
 
