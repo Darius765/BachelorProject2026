@@ -255,6 +255,7 @@ def key_callback(keycode):
 
 # ── Main simulation loop ─────────────────────────────────────
 prev_time = time.time()
+init_time = prev_time
 time_interval = 0.5
 
 with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as viewer:
@@ -317,7 +318,7 @@ with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as vie
                     force_world = frame.T @ nut_force[:3]
 
             if np.linalg.norm(force_world) > 0.01:
-                amplified_force = force_world * 500.0
+                amplified_force = force_world * 250.0
                 ee_force += amplified_force
 
         # Safety checks
@@ -366,7 +367,8 @@ with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as vie
         if task is not None:
             task.step(ee_body)
             if task.is_complete():
-                print("Task complete!")
+                print(f"Task complete! Time taken: {time.time() - init_time:.2f} seconds")
+                sys.exit(0)
 
         if np.linalg.norm(ee_force) > 0.5:
             smooth_force = smooth_force * (1 - smoothing_factor) + ee_force * smoothing_factor

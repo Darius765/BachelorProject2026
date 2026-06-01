@@ -29,7 +29,7 @@ class SafetyLimits:
         self.workspace_max = np.array([0.85,  0.7, 1.2])
 
         # ── Force limits ─────────────────────────────────────
-        self.max_external_force = 200.0   # Newtons
+        self.max_external_force = 500.0   # Newtons
         self.max_external_torque = 500.0  # Nm
 
         # ── Velocity smoothing ───────────────────────────────
