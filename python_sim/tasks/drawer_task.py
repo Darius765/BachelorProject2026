@@ -1,5 +1,6 @@
 import numpy as np
 import mujoco
+import time
 from tasks.base_task import BaseTask
 
 class DrawerTask(BaseTask):
@@ -24,9 +25,16 @@ class DrawerTask(BaseTask):
         # 2 = close drawer
 
         # Thresholds
-        self.drawer_open_threshold = 0.12    # 12cm open = enough
-        self.drawer_closed_threshold = 0.02  # 2cm = considered closed
-        self.bowl_in_drawer_threshold = 0.08 # 8cm from drawer center
+        self.drawer_open_threshold = 0.12
+        self.drawer_closed_threshold = 0.02
+        self.bowl_in_drawer_threshold = 0.08
+
+        # Stage timers
+        self.task_start_time = None
+        self.stage1_complete_time = None
+        self.stage2_complete_time = None
+        self.stage3_complete_time = None
+
 
     def setup(self):
         self.drawer_joint_id = mujoco.mj_name2id(
@@ -38,9 +46,8 @@ class DrawerTask(BaseTask):
         self.table_geom_id = mujoco.mj_name2id(
             self.model, mujoco.mjtObj.mjOBJ_GEOM, "drawer_table_surface")
 
-        print(f"DrawerTask ready")
-        print(f"Drawer joint ID: {self.drawer_joint_id}")
-        print(f"bowl body ID: {self.bowl_body_id}")
+        self.task_start_time = time.time()
+        print(f"DrawerTask ready - Timer started")
 
     def get_drawer_opening(self):
         """Returns current drawer opening distance in metres"""
@@ -64,27 +71,31 @@ class DrawerTask(BaseTask):
 
         drawer_open = self.get_drawer_opening()
         bowl_in_drawer = self.is_bowl_in_drawer()
+        cur_time = time.time()
 
         if self.stage == 0:
             # Stage 1: Open the drawer
             if drawer_open > self.drawer_open_threshold:
                 self.stage = 1
-                print("Stage 1 complete! Drawer opened! Now place the bowl in the drawer.")
+                self.stage1_complete_time = cur_time - self.task_start_time
+                print("Stage 1 complete! Time: {self.stage1_complete_time:.1f} seconds")
 
         elif self.stage == 1:
             # Stage 2: Place bowl in drawer
             if bowl_in_drawer and drawer_open > self.drawer_open_threshold:
                 self.stage = 2
-                print("Stage 2 complete! bowl in drawer! Now close the drawer.")
+                self.stage2_complete_time = cur_time - self.task_start_time
+                print("Stage 2 complete! Time: {self.stage2_complete_time:.1f} seconds")
 
         elif self.stage == 2:
             # Stage 3: Close drawer with bowl inside
             if bowl_in_drawer and drawer_open < self.drawer_closed_threshold:
                 self.completed = True
-                print("Task complete! Drawer closed with bowl inside!")
+                self.stage3_complete_time = cur_time - self.task_start_time
+                print("Task complete! Time: {self.stage3_complete_time:.1f} seconds")
 
     def get_contact_geoms(self):
-        return [self.table_geom_id]
+        return []
 
     def get_status(self):
         if self.completed:
