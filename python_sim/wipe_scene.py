@@ -1,46 +1,24 @@
 import numpy as np
 import xml.etree.ElementTree as ET
 
-def generate_wipe_markers(
-    num_markers=10,
-    table_size=(0.4, 0.4),  # half sizes
-    coverage_factor=0.9,
-    line_width=0.02,
-    seed=None
-):
-    rng = np.random.default_rng(seed)
+def generate_wipe_markers(num_markers=10):
+    
+    fixed_positions = [
+        (-0.23, 0.06),
+        (-0.18, -0.12),
+        (-0.08, 0.08),
+        (-0.02, 0.01),
+        (-0.10, -0.20),
+        (-0.17, 0.10),
+        (-0.30, -0.10),
+        (-0.13, 0.15),
+        (-0.20, -0.05),
+        (-0.22, -0.20),
+    ]
+
     markers = []
-   
-    def sample_start():
-        direction = rng.uniform(-np.pi, np.pi)
-        x = rng.uniform(
-            -table_size[0] * coverage_factor + line_width/2,
-             table_size[0] * coverage_factor - line_width/2
-        )
-        y = rng.uniform(
-            -table_size[1] * coverage_factor + line_width/2,
-             table_size[1] * coverage_factor - line_width/2
-        )
-        return np.array([x, y]), direction
-
-    def sample_next(pos, direction):
-        if rng.uniform(0, 1) > 0.7:
-            direction += rng.normal(0, 0.5)
-       
-        for _ in range(100):
-            x = pos[0] + 0.1 * np.sin(direction)
-            y = pos[1] + 0.1 * np.cos(direction)
-            if (abs(x) < table_size[0] * coverage_factor - line_width/2 and
-                abs(y) < table_size[1] * coverage_factor - line_width/2):
-                return np.array([x, y]), direction
-            direction += rng.normal(0, 0.5)
-        return pos, direction
-
-    pos, direction = sample_start()
-    for i in range(num_markers):
-        markers.append((f"marker_{i}", pos.copy()))
-        pos, direction = sample_next(pos, direction)
-   
+    for i, (x,y) in enumerate(fixed_positions[:num_markers]):
+        markers.append((f"marker_{i}", np.array([x, y])))
     return markers
 
 def add_wipe_scene_to_model(model_path, output_path, num_markers=20):
@@ -51,15 +29,15 @@ def add_wipe_scene_to_model(model_path, output_path, num_markers=20):
     worldbody = root.find("worldbody")
    
     # Table dimensions
-    table_x = 0.4  # half size
-    table_y = 0.4  # half size
-    table_z = 0.02  # half height
-    table_height = 0.40  # height of table surface from ground
+    table_x = 0.4
+    table_y = 0.4
+    table_z = 0.02
+    table_height = 0.40
    
     # Add table
     table_body = ET.SubElement(worldbody, "body")
     table_body.set("name", "wipe_table")
-    table_body.set("pos", f"0.45 -0.15 {table_height}")
+    table_body.set("pos", f"0.55 -0.15 {table_height}")
    
     table_geom = ET.SubElement(table_body, "geom")
     table_geom.set("name", "wipe_table_surface")
@@ -78,13 +56,7 @@ def add_wipe_scene_to_model(model_path, output_path, num_markers=20):
         leg.set("rgba", "0.5 0.3 0.1 1")
 
     # Generate and add wipe markers
-    markers = generate_wipe_markers(
-        num_markers = num_markers,
-        table_size = (0.2, 0.3),
-        coverage_factor = 0.9,
-        line_width = 0.02,
-        seed = None
-    )
+    markers = generate_wipe_markers(num_markers=num_markers)
    
     for name, (mx, my) in markers:
         marker_body = ET.SubElement(table_body, "body")
