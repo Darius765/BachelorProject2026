@@ -21,7 +21,7 @@ DRAWER_MODEL_PATH = "../models/panda_drawer.xml"
 HAPLY_WS_URL = "ws://localhost:10001"
 HAPLY_DEVICE_ID = "05DA"
 
-task_choice = "wipe"  # "wipe", "nut", or "drawer"
+task_choice = "nut"  # "wipe", "nut", or "drawer"
 
 # ── Shared state between threads ─────────────────────────────
 haply_state = {
@@ -288,6 +288,27 @@ with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as vie
 
         ee_force = jacp @ qfrc_ext
         ee_torque = jacr @ qfrc_ext
+
+        if task_choice == "nut":
+            nut_body_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "nut")
+            peg_body_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "peg1")
+            force_world = np.zeros(3)
+
+            for i in range(data.ncon):
+                con = data.contact[i]
+                geom1_body = model.geom_bodyid[con.geom1]
+                geom2_body = model.geom_bodyid[con.geom2]
+                if (geom1_body == nut_body_id and geom2_body == peg_body_id) or \
+                    (geom2_body == nut_body_id and geom1_body == peg_body_id):
+                    nut_force = np.zeros(6)
+                    mujoco.mj_contactForce(model, data, i, nut_force)
+
+                    frame = con.frame.reshape(3, 3)
+                    force_world = frame.T @ nut_force[:3]
+
+            if np.linalg.norm(force_world) > 0.01:
+                amplified_force = force_world * 500.0
+                ee_force += amplified_force
 
         # Safety checks
         safe_qpos, safety_status = safety.apply(target_qpos, ee_body, ee_force, ee_torque)
