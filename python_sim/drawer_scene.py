@@ -38,15 +38,15 @@ def add_drawer_scene(model_path, output_path):
     # ── Table ─────────────────────────────────────────────────
     table_body = ET.SubElement(worldbody, "body")
     table_body.set("name", "drawer_table")
-    table_body.set("pos", "0.45 -0.1 0.35")
+    table_body.set("pos", "0.55 -0.1 0.35")
 
     table_geom = ET.SubElement(table_body, "geom")
     table_geom.set("name", "drawer_table_surface")
     table_geom.set("type", "box")
-    table_geom.set("size", "0.3 0.3 0.02")
+    table_geom.set("size", "0.4 0.3 0.02")
     table_geom.set("material", "wood-mat")
 
-    for i, (lx, ly) in enumerate([(0.35, 0.25), (-0.05, 0.25), (0.35, -0.25), (-0.05, -0.25)]):
+    for i, (lx, ly) in enumerate([(0.35, 0.25), (-0.30, 0.25), (0.35, -0.25), (-0.30, -0.25)]):
         leg = ET.SubElement(table_body, "geom")
         leg.set("name", f"drawer_table_leg_{i}")
         leg.set("type", "cylinder")
@@ -98,9 +98,9 @@ def add_drawer_scene(model_path, output_path):
 
     # Drawer walls
     for name, pos, size in [
-        ("drawer_left",  "0  0.09 0",  "0.13 0.005 0.06"),
-        ("drawer_right", "0 -0.09 0",  "0.13 0.005 0.06"),
-        ("drawer_back",  "-0.12 0 0",  "0.005 0.10 0.06"),
+        ("drawer_left",  "0  0.085 0",  "0.13 0.005 0.06"),
+        ("drawer_right", "0 -0.085 0",  "0.13 0.005 0.06"),
+        ("drawer_back",  "-0.12 0 0",  "0.005 0.09 0.06"),
     ]:
         g = ET.SubElement(drawer_body, "geom")
         g.set("name", name)
