@@ -15,13 +15,15 @@ from tasks.drawer_task import DrawerTask
 from safety import SafetyLimits
 
 # ── Configuration ────────────────────────────────────────────
+EMPTY_MODEL_PATH = "../models/panda_empty.xml"
 WIPE_MODEL_PATH = "../models/panda_wipe.xml"
 NUT_MODEL_PATH = "../models/panda_nut.xml"
 DRAWER_MODEL_PATH = "../models/panda_drawer.xml"
 HAPLY_WS_URL = "ws://localhost:10001"
 HAPLY_DEVICE_ID = "05DA"
 
-task_choice = "nut"  # "wipe", "nut", or "drawer"
+task_choice = "nut"  # "empty", "wipe", "nut", or "drawer"
+force_feedback_enabled = True
 
 # ── Shared state between threads ─────────────────────────────
 haply_state = {
@@ -36,6 +38,8 @@ state_lock = threading.Lock()
 
 # ── Load MuJoCo model ────────────────────────────────────────
 match task_choice:
+    case "empty":
+        model = mujoco.MjModel.from_xml_path(EMPTY_MODEL_PATH)
     case "wipe":
         model = mujoco.MjModel.from_xml_path(WIPE_MODEL_PATH)
     case "nut":
@@ -66,6 +70,8 @@ safety = SafetyLimits(model, data)
 
 # ── Task setup ─────────────────────────────────────────────────
 match task_choice:
+    case "empty":
+        task = None
     case "wipe":
         task = WipeTask(model, data, num_markers=10)
     case "nut":
@@ -76,7 +82,8 @@ match task_choice:
         print(f"Unknown task choice: {task_choice}")
         sys.exit(1)
 
-task.setup()
+if task is not None:
+    task.setup()
 
 # ── Haply WebSocket client ───────────────────────────────────
 async def haply_client():
@@ -240,7 +247,7 @@ alpha_ori = 0.1
 
 # ── Keyboard interrupts ─────────────────────────────────────────
 def key_callback(keycode):
-    if keycode == ord(''):
+    if keycode == 32:
         safety.trigger_estop("Spacebar pressed")
     elif keycode == ord('r'):
         safety.reset_estop()
@@ -255,6 +262,9 @@ with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as vie
     viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_CONTACTFORCE] = False
     viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_JOINT] = False
     viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_ACTUATOR] = False
+
+    viewer.user_scn.flags[mujoco.mjtRndFlag.mjRND_SHADOW] = False
+    viewer._hide_menus = True
 
     clutch_active = False
     prev_clutch = False
@@ -353,7 +363,10 @@ with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as vie
         pd_control()
 
         # Task update
-        task.step(ee_body)
+        if task is not None:
+            task.step(ee_body)
+            if task.is_complete():
+                print("Task complete!")
 
         if np.linalg.norm(ee_force) > 0.5:
             smooth_force = smooth_force * (1 - smoothing_factor) + ee_force * smoothing_factor
@@ -361,7 +374,7 @@ with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as vie
             smooth_force = smooth_force * (1 - smoothing_factor)
 
         # Apply force feedback
-        if np.linalg.norm(smooth_force) > 0.1: 
+        if force_feedback_enabled and np.linalg.norm(smooth_force) > 0.1: 
             fx = float(-smooth_force[0] * force_scale)
             fy = float(-smooth_force[1] * force_scale)
             fz = float(smooth_force[2] * force_scale)
@@ -386,5 +399,3 @@ with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as vie
             prev_time = cur_time
             if safety.is_estop():
                 print("ESTOP ENGAGED! Holding position.")
-            if task.is_complete():
-                print("Task complete!")

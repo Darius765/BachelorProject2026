@@ -44,7 +44,8 @@ class DrawerTask(BaseTask):
 
     def get_drawer_opening(self):
         """Returns current drawer opening distance in metres"""
-        return self.data.qpos[self.drawer_joint_id + 7]  # +7 for arm joints
+        qpos_addr = self.model.jnt_qposadr[self.drawer_joint_id]
+        return self.data.qpos[qpos_addr]
 
     def is_bowl_in_drawer(self):
         """Check if bowl is inside the drawer"""
