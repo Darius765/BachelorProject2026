@@ -30,7 +30,7 @@ class SafetyLimits:
 
         # ── Force limits ─────────────────────────────────────
         self.max_external_force = 200.0   # Newtons
-        self.max_external_torque = 300.0  # Nm
+        self.max_external_torque = 500.0  # Nm
 
         # ── Velocity smoothing ───────────────────────────────
         self.prev_target_qpos = None

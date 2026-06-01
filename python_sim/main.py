@@ -143,13 +143,12 @@ ref_orientation = haply_state["orientation"].copy()
 clutch_neutral_pos = neutral_pos.copy()
 clutch_ref_ori = ref_orientation.copy()
 clutch_saved_qpos = None
-clutch_saved_smooth_ori = None
 home_pos = np.array([0.304, 0.000, 0.65])
 scale = 1.0
 
 def transform_position(haply_pos):
     rel = haply_pos - clutch_neutral_pos
-    return home_pos + np.array([-rel[0], -rel[1], rel[2]]) * scale
+    return home_pos + np.array([rel[1], -rel[0], rel[2]]) * scale
 
 def quat_multiply(q1, q2):
     w1, x1, y1, z1 = q1
@@ -236,7 +235,8 @@ smoothing_factor = 0.2
 force_scale = 0.02
 max_force = 1.0
 smooth_ori = haply_state["orientation"].copy()
-alpha_ori = 0.2
+clutch_saved_smooth_ori = smooth_ori.copy()
+alpha_ori = 0.1
 
 # ── Keyboard interrupts ─────────────────────────────────────────
 def key_callback(keycode):
@@ -270,18 +270,15 @@ with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as vie
             has_ori = haply_state["has_orientation"]
 
         if has_pos and has_ori and not safety.is_estop():
-            if not clutch_active:
-                # Smooth orientation
-                smooth_ori = smooth_ori * (1 - alpha_ori) + haply_ori * alpha_ori
-                smooth_ori /= np.linalg.norm(smooth_ori)
-            
             if clutch_active and clutch_saved_qpos is not None:
                 target_qpos = clutch_saved_qpos.copy()
             else:
+                smooth_ori = smooth_ori * (1 - alpha_ori) + haply_ori * alpha_ori
+                smooth_ori /= np.linalg.norm(smooth_ori)
                 franka_pos = transform_position(haply_pos)
                 franka_quat = transform_orientation(smooth_ori)
                 solve_ik(franka_pos, franka_quat)
-
+                
         nv = model.nv
         jacp = np.zeros((3, nv))
         jacr = np.zeros((3, nv))
@@ -319,6 +316,7 @@ with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as vie
             clutch_active = False
             clutch_neutral_pos = haply_pos.copy()
             clutch_ref_ori = clutch_saved_smooth_ori.copy()
+            home_pos = data.xpos[ee_body].copy()
             print("Clutch released")
 
         prev_clutch = btn_c
