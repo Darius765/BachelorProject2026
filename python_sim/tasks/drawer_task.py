@@ -25,8 +25,8 @@ class DrawerTask(BaseTask):
         # 2 = close drawer
 
         # Thresholds
-        self.drawer_open_threshold = 0.12
-        self.drawer_closed_threshold = 0.02
+        self.drawer_open_threshold = 0.08
+        self.drawer_closed_threshold = 0.04
         self.bowl_in_drawer_threshold = 0.08
 
         # Stage timers
@@ -78,21 +78,21 @@ class DrawerTask(BaseTask):
             if drawer_open > self.drawer_open_threshold:
                 self.stage = 1
                 self.stage1_complete_time = cur_time - self.task_start_time
-                print("Stage 1 complete! Time: {self.stage1_complete_time:.1f} seconds")
+                print(f"Stage 1 complete! Time: {self.stage1_complete_time:.2f} seconds")
 
         elif self.stage == 1:
             # Stage 2: Place bowl in drawer
             if bowl_in_drawer and drawer_open > self.drawer_open_threshold:
                 self.stage = 2
                 self.stage2_complete_time = cur_time - self.task_start_time
-                print("Stage 2 complete! Time: {self.stage2_complete_time:.1f} seconds")
+                print(f"Stage 2 complete! Time: {self.stage2_complete_time:.2f} seconds")
 
         elif self.stage == 2:
             # Stage 3: Close drawer with bowl inside
             if bowl_in_drawer and drawer_open < self.drawer_closed_threshold:
                 self.completed = True
                 self.stage3_complete_time = cur_time - self.task_start_time
-                print("Task complete! Time: {self.stage3_complete_time:.1f} seconds")
+                print(f"Task complete! Time: {self.stage3_complete_time:.2f} seconds")
 
     def get_contact_geoms(self):
         return []

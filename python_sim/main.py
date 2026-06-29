@@ -22,7 +22,7 @@ DRAWER_MODEL_PATH = "../models/panda_drawer.xml"
 HAPLY_WS_URL = "ws://localhost:10001"
 HAPLY_DEVICE_ID = "05DA"
 
-task_choice = "wipe"  # "empty", "wipe", "nut", or "drawer"
+task_option = "0"  # "0"=empty, "1"=wipe, "2"=nut, "3"=drawer
 force_feedback_enabled = True
 
 # ── Shared state between threads ─────────────────────────────
@@ -37,14 +37,32 @@ force_command = {"x": 0.0, "y": 0.0, "z": 0.0}
 state_lock = threading.Lock()
 
 # ── Load MuJoCo model ────────────────────────────────────────
+task_choice = ""
+match task_option:
+    case "0":
+        task_choice = "empty"
+    case "1":
+        task_choice = "wipe"
+    case "2":
+        task_choice = "nut"
+    case "3":
+        task_choice = "drawer"
+    case _:
+        sys.exit(f"Invalid task option: {task_option}")
+
+
 match task_choice:
     case "empty":
+        print(f"TASK: EMPTY")
         model = mujoco.MjModel.from_xml_path(EMPTY_MODEL_PATH)
     case "wipe":
+        print(f"TASK: WIPE")
         model = mujoco.MjModel.from_xml_path(WIPE_MODEL_PATH)
     case "nut":
+        print(f"TASK: NUT")
         model = mujoco.MjModel.from_xml_path(NUT_MODEL_PATH)
     case "drawer":
+        print(f"TASK: DRAWER")
         model = mujoco.MjModel.from_xml_path(DRAWER_MODEL_PATH)
     case _:
         print(f"Unknown task choice: {task_choice}")
@@ -72,7 +90,7 @@ match task_choice:
     case "empty":
         task = None
     case "wipe":
-        task = WipeTask(model, data, num_markers=10)
+        task = WipeTask(model, data, num_markers=25)
     case "nut":
         task = NutAssemblyTask(model, data)
     case "drawer":
@@ -140,8 +158,6 @@ print("Waiting for Haply data...")
 while not haply_state["has_orientation"] or not haply_state["has_position"]:
     time.sleep(0.01)
 print("Haply connected!")
-print(f"Initial position: {haply_state['position']}")
-print(f"Initial orientation: {haply_state['orientation']}")
 
 # ── Coordinate transform ─────────────────────────────────────
 neutral_pos = haply_state["position"].copy()
@@ -177,8 +193,6 @@ def transform_orientation(haply_ori):
     q_target = quat_multiply(q_relative, q_arm_init)
     q_target /= np.linalg.norm(q_target)
     return q_target
-
-print(f"Neutral position set: {neutral_pos}")
 
 # ── IK solver ────────────────────────────────────────────────
 joint_min = np.array([-2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973])
@@ -262,8 +276,6 @@ with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as vie
     viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_CONTACTFORCE] = False
     viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_JOINT] = False
     viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_ACTUATOR] = False
-
-    viewer.user_scn.flags[mujoco.mjtRndFlag.mjRND_SHADOW] = False
     viewer._hide_menus = True
 
     clutch_active = False
@@ -271,7 +283,6 @@ with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as vie
 
     print("Simulation running!")
     while viewer.is_running():
-        # Get Haply data
         with state_lock:
             haply_pos = haply_state["position"].copy()
             haply_ori = haply_state["orientation"].copy()
@@ -324,12 +335,12 @@ with mujoco.viewer.launch_passive(model, data, key_callback=key_callback) as vie
         safe_qpos, safety_status = safety.apply(target_qpos, ee_body, ee_force, ee_torque)
         target_qpos = safe_qpos
 
-        if safety_status["estop"]:
-            pass
-        elif safety_status["workspace_violation"]:
-            print("Workspace limit violated! Holding position.")
-        elif safety_status["joint_limit"]:
-            print("Joint limit violated! Holding position.")
+        # if safety_status["estop"]:
+        #     pass
+        # elif safety_status["workspace_violation"]:
+        #     print("Workspace limit violated! Holding position.")
+        # elif safety_status["joint_limit"]:
+        #     print("Joint limit violated! Holding position.")
 
         # Gripper control
         with state_lock:

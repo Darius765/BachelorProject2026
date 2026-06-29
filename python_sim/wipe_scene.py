@@ -1,11 +1,11 @@
 import numpy as np
 import xml.etree.ElementTree as ET
 
-def generate_wipe_markers(num_markers=10):
+def generate_wipe_markers(num_markers=25):
     
     fixed_positions = [
         (-0.23, 0.06),
-        (-0.18, -0.12),
+        (0.00, -0.12),
         (-0.08, 0.08),
         (-0.02, 0.01),
         (-0.10, -0.20),
@@ -14,6 +14,24 @@ def generate_wipe_markers(num_markers=10):
         (-0.13, 0.15),
         (-0.20, -0.05),
         (-0.22, -0.20),
+
+        (-0.12, 0.02),
+        (-0.10, 0.01),
+        (-0.08, 0.00),
+        (-0.06, -0.01),
+        (-0.04, -0.02),
+        (-0.02, -0.03),
+        (0.00, -0.04),
+        (0.02, -0.05),
+
+        (-0.15, -0.15),
+        (-0.12, -0.14),
+        (-0.10, -0.16),
+        (-0.13, -0.18),
+        (-0.16, -0.17),
+        (-0.11, -0.19),
+        (-0.14, -0.20),
+        (-0.09, -0.15),
     ]
 
     markers = []
@@ -21,7 +39,7 @@ def generate_wipe_markers(num_markers=10):
         markers.append((f"marker_{i}", np.array([x, y])))
     return markers
 
-def add_wipe_scene_to_model(model_path, output_path, num_markers=20):
+def add_wipe_scene_to_model(model_path, output_path, num_markers=25):
     tree = ET.parse(model_path)
     root = tree.getroot()
    
@@ -81,6 +99,6 @@ if __name__ == "__main__":
     markers = add_wipe_scene_to_model(
         "../models/panda.xml",
         "../models/panda_wipe.xml",
-        num_markers=10
+        num_markers=25
     )
     print(f"Markers: {markers}")
