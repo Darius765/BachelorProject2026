@@ -1,4 +1,3 @@
-# BachelorProject2026
 # Franka-Haply Haptic Teleoperation
 
 A haptic teleoperation system that connects a **Haply Inverse3** and **VerseGrip** to a simulated **Franka Panda** robot arm using MuJoCo. The user controls the robot arm's position and orientation using the Haply devices, with force feedback reflecting contact forces from the simulation.
